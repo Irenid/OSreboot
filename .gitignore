@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+
+# Runtime state, served images and local settings
+data/*
+!data/.gitkeep
+files/*
+!files/.gitkeep
+config/devices.json
+*.token
+.env
+.env.*
+
+# Personal notes, not part of the project
+private/
+
+# Editors
+.idea/
+.vscode/
+*.swp
