@@ -1,0 +1,6 @@
+{
+  "devices": [
+    { "id": "laptop", "name": "Laptop", "tokenSha256": "replace with sha256 of the laptop token" },
+    { "id": "vm", "name": "Test VM", "tokenSha256": "replace with sha256 of the VM token" }
+  ]
+}
