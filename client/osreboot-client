@@ -1,0 +1,78 @@
+#!/bin/sh
+# Reports to the OSreboot server: heartbeats from the running system and
+# stages from the wipe script and the recovery environment.
+#
+#   osreboot-client heartbeat                     a heartbeat every second
+#   osreboot-client stage NAME [PERCENT|-] [TEXT]  report a stage, e.g. "download 42"
+#
+# Environment:
+#   OSREBOOT_URL         server address, e.g. https://example.org/osreboot
+#   OSREBOOT_TOKEN_FILE  device token; by default the systemd credential
+#                        $CREDENTIALS_DIRECTORY/osreboot-token
+#
+# Any heartbeat ends an outage on the server, so stop the heartbeat service
+# before a script on the running system reports a stage.
+set -eu
+
+usage() {
+	echo "usage: osreboot-client heartbeat | stage NAME [PERCENT|-] [TEXT]" >&2
+	exit 2
+}
+
+# The token goes to curl through stdin, so it never shows up in the process list.
+post() {
+	printf 'header = "Authorization: Bearer %s"\n' "$token" |
+		curl --silent --show-error --fail --max-time 5 --config - \
+			--header 'Content-Type: application/json' \
+			--data "$2" "${OSREBOOT_URL%/}/api/$1" >/dev/null
+}
+
+json_string() {
+	printf '"%s"' "$(printf '%s' "$1" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')"
+}
+
+heartbeat() {
+	boot=$(cat /proc/sys/kernel/random/boot_id)
+	while :; do
+		post heartbeat "{\"boot\":\"$boot\"}" || true
+		sleep 1
+	done
+}
+
+stage() {
+	[ $# -ge 1 ] || usage
+	percent=${2:--}
+	case $percent in
+	-) percent=null ;;
+	*[!0-9.]* | .* | *.*.* | *.) usage ;;
+	esac
+	message=null
+	if [ $# -ge 3 ]; then
+		message=$(json_string "$3")
+	fi
+	body="{\"stage\":$(json_string "$1"),\"percent\":$percent,\"message\":$message}"
+	# The network in the recovery environment may need a moment: three attempts.
+	for _ in 1 2 3; do
+		post progress "$body" && return 0
+		sleep 2
+	done
+	return 1
+}
+
+command=${1:-}
+if [ $# -gt 0 ]; then
+	shift
+fi
+case $command in
+heartbeat | stage) ;;
+*) usage ;;
+esac
+
+: "${OSREBOOT_URL:?OSREBOOT_URL is not set}"
+if [ -z "${OSREBOOT_TOKEN_FILE:-}" ]; then
+	: "${CREDENTIALS_DIRECTORY:?set OSREBOOT_TOKEN_FILE or pass the token as the osreboot-token credential}"
+	OSREBOOT_TOKEN_FILE=$CREDENTIALS_DIRECTORY/osreboot-token
+fi
+token=$(cat "$OSREBOOT_TOKEN_FILE")
+
+"$command" "$@"

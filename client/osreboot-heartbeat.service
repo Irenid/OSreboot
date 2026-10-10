@@ -1,0 +1,22 @@
+# Heartbeats of the restored system. The token is encrypted with the TPM of the
+# machine, so the system image itself carries no secrets:
+#   systemd-creds encrypt -T --name=osreboot-token laptop.token /etc/credstore.encrypted/osreboot-token
+[Unit]
+Description=OSreboot heartbeat
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Environment=OSREBOOT_URL=https://example.org/osreboot
+LoadCredentialEncrypted=osreboot-token
+ExecStart=/usr/local/bin/osreboot-client heartbeat
+Restart=always
+RestartSec=2
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
