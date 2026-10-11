@@ -1,0 +1,27 @@
+# Start: `docker compose up -d --build`. Needs config/devices.json, see README.md.
+services:
+  osreboot:
+    build: .
+    image: osreboot:latest
+    init: true
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      HEARTBEAT_TIMEOUT_MS: "3000"
+      TZ: ${TZ:-UTC}
+    ports:
+      # Loopback only: from the internet the server is reached through the reverse proxy.
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./data:/app/data
+      - ./files:/app/files:ro
+      - ./config:/app/config:ro
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
