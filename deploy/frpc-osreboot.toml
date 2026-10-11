@@ -1,0 +1,14 @@
+# Tunnel entry for the FRP client on the machine that runs the server. Append it
+# to the client config next to the other [[proxies]] and restart the client.
+# REMOTE_PORT: a free port from allowPorts of frps; nginx on the VPS proxies to it.
+
+[[proxies]]
+name = "osreboot"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 8090
+remotePort = REMOTE_PORT
+healthCheck.type = "tcp"
+healthCheck.timeoutSeconds = 3
+healthCheck.maxFailed = 3
+healthCheck.intervalSeconds = 10
