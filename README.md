@@ -111,3 +111,5 @@ under `/osreboot/`.
 - `deploy/frpc-osreboot.toml` is the tunnel entry for the FRP client.
 - `deploy/nginx-osreboot.conf` has the nginx locations. Include them in the
   plain HTTP server, which firmware HTTP Boot uses, and in the HTTPS server.
+- `deploy/nginx-osreboot-host.conf` serves the pages on a host name of their
+  own, so the status page opens at the root of that name.
