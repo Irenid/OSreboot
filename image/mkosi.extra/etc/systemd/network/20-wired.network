@@ -1,0 +1,7 @@
+# Any wired card gets its address by DHCP.
+[Match]
+Type=ether
+Kind=!*
+
+[Network]
+DHCP=yes
