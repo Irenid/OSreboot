@@ -1,0 +1,23 @@
+# Puts the SSH host key from the credential osreboot-ssh-host-key in place
+# before sshd starts. Every restore writes a fresh image, so without it the host
+# key would change with each restore and clients would refuse to connect. The
+# credential is encrypted with the machine's TPM, so the image carries no
+# secret. Without the credential sshdgenkeys.service generates a key as usual.
+[Unit]
+Description=OSreboot SSH host key
+# Only an order: Wants= would wait 90 s for a TPM device where there is none.
+After=tpm2.target
+Before=sshdgenkeys.service sshd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# For a test in a virtual machine without the TPM: pass the key in.
+ImportCredential=osreboot-ssh-host-key
+ExecStart=/bin/sh -ec '\
+	[ -f %d/osreboot-ssh-host-key ] || exit 0; \
+	install -m 0600 %d/osreboot-ssh-host-key /etc/ssh/ssh_host_ed25519_key; \
+	ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key >/etc/ssh/ssh_host_ed25519_key.pub'
+
+[Install]
+WantedBy=multi-user.target

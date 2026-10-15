@@ -1,0 +1,37 @@
+# Reverse SSH tunnel: the restored system has no public address, so it logs in
+# to the server as a user that may only open a Unix socket there, and that
+# socket leads back to sshd here. The server and the socket are site settings,
+# the server's host key comes from /etc/ssh/ssh_known_hosts and the private key
+# is the credential osreboot-tunnel-key, encrypted with the machine's TPM; see
+# README.md.
+[Unit]
+Description=OSreboot reverse SSH tunnel
+Wants=network-online.target
+# Only an order: Wants= would wait 90 s for a TPM device where there is none.
+After=network-online.target tpm2.target
+# Keeps trying for as long as the network is down.
+StartLimitIntervalSec=0
+
+[Service]
+Environment=OSREBOOT_TUNNEL=osreboot-tunnel@example.org OSREBOOT_TUNNEL_SOCKET=/var/lib/osreboot-tunnel/sock/ssh.sock
+# For a test in a virtual machine without the TPM: pass the key in.
+ImportCredential=osreboot-tunnel-key
+# The server replaces the socket of an older connection, such as the one the
+# system had before the wipe. A dead connection ends here within 45 s, and the
+# restart opens a new one.
+ExecStart=/usr/bin/ssh -NT -i %d/osreboot-tunnel-key \
+	-o IdentitiesOnly=yes -o BatchMode=yes \
+	-o StrictHostKeyChecking=yes -o UserKnownHostsFile=none \
+	-o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+	-o ExitOnForwardFailure=yes \
+	-R ${OSREBOOT_TUNNEL_SOCKET}:127.0.0.1:22 ${OSREBOOT_TUNNEL}
+Restart=always
+RestartSec=10
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
