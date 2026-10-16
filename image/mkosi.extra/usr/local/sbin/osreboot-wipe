@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# The "system destroyed" step of the demo, run on the test system itself. It
+# makes the network boot loader the one-shot entry of the boot manager on the
+# main ESP, stops the heartbeat, reports the wipe, overwrites the start of
+# osreboot-esp and osreboot-root and resets the machine. The machine then
+# boots iPXE, which starts the recovery environment from the server.
+#
+# The network boot is the systemd-boot entry osreboot-ipxe.conf on the main
+# ESP, not a firmware boot entry: the laptop's firmware overwrote firmware
+# entries outside BootOrder when it found the rewritten test ESP. The firmware
+# boots the first entry of BootOrder, and systemd-boot there boots the one-shot
+# entry once, then forgets it.
+#
+#   osreboot-wipe           checks and shows the plan, changes nothing
+#   osreboot-wipe --apply   wipes and resets the machine at once
+set -euo pipefail
+
+ESP_LABEL=osreboot-esp
+ROOT_LABEL=osreboot-root
+IPXE_ENTRY=osreboot-ipxe.conf
+ONESHOT=/sys/firmware/efi/efivars/LoaderEntryOneShot-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+WIPE_MIB=64
+WORK=/run/osreboot-wipe
+
+die() {
+	echo "osreboot-wipe: $*" >&2
+	exit 1
+}
+
+apply=no
+[ "${1:-}" = --apply ] && apply=yes
+[ "$(id -u)" = 0 ] || die "run it as root"
+
+partition() {
+	local found
+	found=$(lsblk -rno PATH,PARTLABEL | awk -v l="$1" '$2 == l { print $1 }')
+	[ -n "$found" ] && [ "$(wc -l <<<"$found")" = 1 ] || die "need exactly one partition labelled $1"
+	echo "$found"
+}
+esp=$(partition $ESP_LABEL)
+root=$(partition $ROOT_LABEL)
+# Only the test system wipes itself: / must be the partition labelled osreboot-root.
+[ "$(findmnt -no SOURCE /)" = "$root" ] || die "/ is not on $root: this is not the test system"
+mkdir -p "$WORK"
+chmod 0700 "$WORK"
+
+# After the reset the firmware boots the first entry of BootOrder. That entry
+# has to start from the main ESP, and the ESP has to hold the iPXE entry and
+# its program.
+first=$(efibootmgr | sed -n 's/^BootOrder: \([0-9A-Fa-f]\{4\}\).*/\1/p')
+[ -n "$first" ] || die "the firmware has no BootOrder"
+main_uuid=$(efibootmgr -v | grep "^Boot$first" | grep -oiE 'HD\([0-9]+,GPT,[0-9a-f-]{36}' | cut -d, -f3 | tr A-F a-f || true)
+[ -n "$main_uuid" ] || die "Boot$first, the first entry of BootOrder, does not start from a GPT partition"
+main_esp=$(readlink -f "/dev/disk/by-partuuid/$main_uuid")
+[ -b "$main_esp" ] || die "Boot$first starts from the partition $main_uuid, which this system does not see"
+[ "$main_esp" != "$esp" ] || die "Boot$first starts from $ESP_LABEL, the partition this wipes"
+mkdir -p "$WORK/esp"
+mount -t vfat -o ro "$main_esp" "$WORK/esp"
+loader=$(awk '$1 == "efi" { print $2; exit }' "$WORK/esp/loader/entries/$IPXE_ENTRY" 2>/dev/null || true)
+found=no
+[ -n "$loader" ] && [ -f "$WORK/esp/$loader" ] && found=yes
+umount "$WORK/esp"
+[ $found = yes ] || die "$main_esp has no boot entry $IPXE_ENTRY with its program: run ipxe/install-ipxe.sh in the main system"
+
+# The server address and the token are the heartbeat's.
+OSREBOOT_URL=$(systemctl show -P Environment osreboot-heartbeat.service | tr ' ' '\n' |
+	sed -n 's/^OSREBOOT_URL=//p' | tail -n 1)
+export OSREBOOT_URL
+if [ -n "$OSREBOOT_URL" ] &&
+	systemd-creds decrypt --name=osreboot-token /etc/credstore.encrypted/osreboot-token "$WORK/token" 2>/dev/null; then
+	export OSREBOOT_TOKEN_FILE=$WORK/token
+else
+	echo "No server address or token: the stages will not be reported."
+fi
+report() {
+	[ -n "${OSREBOOT_TOKEN_FILE:-}" ] || return 0
+	osreboot-client stage "$@" || echo "the server did not take the $1 report"
+}
+
+echo "Plan:"
+echo "  one-shot boot entry: $IPXE_ENTRY ($loader) on $main_esp, which Boot$first starts first"
+echo "  stop osreboot-heartbeat.service, report the stage wipe to ${OSREBOOT_URL:-nowhere}"
+echo "  overwrite the first $WIPE_MIB MiB of $esp ($ESP_LABEL) and $root ($ROOT_LABEL)"
+echo "  reset the machine at once"
+if [ $apply != yes ]; then
+	echo "Nothing was changed. Run with --apply to wipe."
+	exit 0
+fi
+
+# A BootNext would be booted before BootOrder.
+efibootmgr --delete-bootnext >/dev/null 2>&1 || true
+bootctl set-oneshot "$IPXE_ENTRY"
+[ "$(tail -c +5 "$ONESHOT" | tr -d '\0')" = "$IPXE_ENTRY" ] || die "the one-shot entry was not set"
+systemctl stop osreboot-heartbeat.service
+report wipe - "overwriting $ESP_LABEL and $ROOT_LABEL"
+# The last report goes out while the system is whole: after the wipe a report
+# did not reach the server (2026-10-23). The wipe itself takes under a second.
+report netboot - "wiped, rebooting into the network boot, one-shot $IPXE_ENTRY"
+# Read-only first, so that no file system writes its metadata back over the
+# zeros; the block devices stay writable.
+sync
+echo u >/proc/sysrq-trigger
+dd if=/dev/zero of="$esp" bs=1M count=$WIPE_MIB oflag=direct status=none
+dd if=/dev/zero of="$root" bs=1M count=$WIPE_MIB oflag=direct status=none
+# The file systems are gone: no clean shutdown, reset right away.
+echo b >/proc/sysrq-trigger
