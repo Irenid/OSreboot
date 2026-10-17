@@ -1,0 +1,5 @@
+#!/bin/sh
+# Installs the OSreboot client, which ExtraTrees copies in from ../client.
+set -eu
+
+ln -sf ../lib/osreboot-client/osreboot-client "$BUILDROOT/usr/local/bin/osreboot-client"
