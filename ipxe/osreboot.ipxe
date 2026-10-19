@@ -1,0 +1,50 @@
+#!ipxe
+# Built into ipxe.efi, see build.sh. It gets an address by DHCP, finds the
+# server and chains boot.ipxe from its files over HTTPS, which starts the
+# recovery environment. Whatever fails, it restarts the machine: the one-shot
+# entry that started it is used up by then, so the machine comes back in its
+# own system. It never returns to the boot manager, which would then wait in
+# its menu for someone at the keyboard.
+echo OSreboot network boot (iPXE ${version})
+set host @HOST@
+
+set tries:int32 0
+:dhcp
+dhcp && goto configured ||
+inc tries
+iseq ${tries} 5 && goto failed ||
+echo DHCP failed, retry ${tries} in 3 s
+sleep 3
+goto dhcp
+:configured
+echo Address ${net0/ip}, gateway ${net0/gateway}, DNS ${dns}
+
+# Home routers sometimes answer the first queries with an error, and iPXE
+# then reports "DNS name does not exist". Retry, then try public resolvers.
+set tries:int32 0
+:resolve
+nslookup server ${host} && goto resolved ||
+inc tries
+iseq ${tries} 3 && goto public_dns ||
+echo DNS ${dns} did not resolve ${host}, retry ${tries} in 2 s
+sleep 2
+goto resolve
+:public_dns
+echo DNS ${dns} failed 3 times, trying 1.1.1.1
+set dns 1.1.1.1
+nslookup server ${host} && goto resolved ||
+echo 1.1.1.1 failed, trying 8.8.8.8
+set dns 8.8.8.8
+nslookup server ${host} && goto resolved ||
+echo No DNS server resolved ${host}
+goto failed
+
+:resolved
+echo ${host} is ${server} (DNS ${dns})
+# boot.ipxe starts the recovery environment; it only comes back if that fails.
+chain --autofree https://${host}/files/boot.ipxe ||
+
+:failed
+echo The network boot failed.
+prompt --key 0x02 --timeout 60000 Press Ctrl-B within 60 s for the iPXE shell, or the machine restarts && shell ||
+reboot

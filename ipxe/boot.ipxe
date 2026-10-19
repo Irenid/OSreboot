@@ -1,0 +1,8 @@
+#!ipxe
+# Served from files/ on the server; the iPXE built by build.sh chains it.
+# The relative name resolves against the address of this script.
+echo Loading the OSreboot recovery environment
+chain --autofree osreboot-recovery.efi ||
+echo Could not start the recovery environment.
+# Back to the script built into ipxe.efi, which restarts the machine.
+exit 1
