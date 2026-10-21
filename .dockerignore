@@ -12,3 +12,6 @@ deploy
 *.token
 .env
 .env.*
+image
+ipxe
+recovery
