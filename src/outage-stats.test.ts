@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { median, parseRuns, phases } from './outage-stats.js';
+import { complete, median, parseRuns, phases, table } from './outage-stats.js';
 
 const csv = [
   'device,start,end,downtime_s,rebooted,stages',
@@ -11,11 +11,33 @@ const csv = [
   '',
 ].join('\n');
 
+// A wiped run whose download broke off: the outage lasted until someone
+// booted the test system again, an hour later.
+const cutOff =
+  'laptop,2026-10-23T16:10:00.000Z,2026-10-23T17:10:00.000Z,3600.0,true,wipe@0.3 netboot@0.5 recovery@70.0 partition@70.2 download@70.9';
+
 test('parseRuns keeps only outages with the recovery environment', () => {
   const runs = parseRuns(csv);
   assert.equal(runs.length, 2);
   assert.equal(runs[1]?.stages.get('netboot'), 0.5);
   assert.equal(parseRuns(csv, 'vm').length, 0);
+});
+
+test('a run is complete only when the recovery environment reached the reboot', () => {
+  const runs = parseRuns(csv + cutOff);
+  assert.deepEqual(runs.map(complete), [true, true, false]);
+  const [, , cut] = runs;
+  assert.ok(cut);
+  assert.equal(phases(cut).recovery, null);
+  assert.equal(phases(cut).total, 3600);
+});
+
+test('the summary leaves out incomplete runs but the table still shows them', () => {
+  const lines = table(parseRuns(csv + cutOff)).split('\n');
+  assert.equal(lines[4], '| 2026-10-23 16:10:00Z | laptop | 69.7 | — | — | — | — | — | 3600.0 | stopped at download |');
+  // With the cut-off run the medians of netboot and total would be 68.8 and 1882.9.
+  assert.match(lines[6] ?? '', /^\| median \| \| 67\.9 \| .* \| 165\.7 \| \|$/);
+  assert.equal(lines.at(-2), '3 runs with the recovery environment, 2 of them complete;');
 });
 
 test('phases measure from stage to stage and to the first heartbeat', () => {

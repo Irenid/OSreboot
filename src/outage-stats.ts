@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
 // Sums up data/outages.csv: one row per recovery with the time between its
-// stages, then the minimum, median and maximum of every column.
+// stages, then the minimum, median and maximum of every column over the
+// recoveries that got as far as the reboot.
 //
 //   node dist/outage-stats.js [data/outages.csv] [device]
 //   docker compose exec osreboot node dist/outage-stats.js data/outages.csv
@@ -27,6 +28,17 @@ const COLUMNS: readonly [Column, string, string][] = [
   ['restart', 'reboot', 'end'],
   ['total', 'start', 'end'],
 ];
+
+// A run is complete when the recovery environment got as far as restarting
+// the machine. A failed or cut-off one ends with an earlier stage, and its
+// outage lasts until someone boots the test system again.
+export function complete(run: Run): boolean {
+  return run.stages.has('reboot');
+}
+
+function outcome(run: Run): string {
+  return complete(run) ? 'ok' : `stopped at ${[...run.stages.keys()].at(-1) ?? 'start'}`;
+}
 
 // Outages without the recovery environment (network gaps, plain reboots) are left out.
 export function parseRuns(csv: string, device?: string): Run[] {
@@ -66,29 +78,33 @@ export function median(values: readonly number[]): number {
   return sorted.length % 2 ? (sorted[mid] ?? NaN) : ((sorted[mid - 1] ?? NaN) + (sorted[mid] ?? NaN)) / 2;
 }
 
+// Every run gets a row; min, median and max cover only the complete runs,
+// because the outage of an incomplete one says nothing about the recovery.
 export function table(runs: readonly Run[]): string {
   const columns = COLUMNS.map(([column]) => column);
   const cell = (v: number | null) => (v === null ? '—' : v.toFixed(1));
   const rows = runs.map((run) => {
     const p = phases(run);
-    return `| ${run.start.replace('T', ' ').slice(0, 19)}Z | ${run.device} | ${columns.map((c) => cell(p[c])).join(' | ')} |`;
+    return `| ${run.start.replace('T', ' ').slice(0, 19)}Z | ${run.device} | ${columns.map((c) => cell(p[c])).join(' | ')} | ${outcome(run)} |`;
   });
+  const done = runs.filter(complete);
   const summary = (['min', 'median', 'max'] as const).map((stat) => {
     const cells = columns.map((c) => {
-      const values = runs.map((run) => phases(run)[c]).filter((v): v is number => v !== null);
+      const values = done.map((run) => phases(run)[c]).filter((v): v is number => v !== null);
       if (values.length === 0) return '—';
       const value = stat === 'min' ? Math.min(...values) : stat === 'max' ? Math.max(...values) : median(values);
       return value.toFixed(1);
     });
-    return `| ${stat} | | ${cells.join(' | ')} |`;
+    return `| ${stat} | | ${cells.join(' | ')} | |`;
   });
   return [
-    `| start (UTC) | device | ${columns.join(' | ')} |`,
-    `|---|---|${columns.map(() => '---:').join('|')}|`,
+    `| start (UTC) | device | ${columns.join(' | ')} | result |`,
+    `|---|---|${columns.map(() => '---:').join('|')}|---|`,
     ...rows,
     ...summary,
     '',
-    `${runs.length} runs with the recovery environment, times in seconds.`,
+    `${runs.length} runs with the recovery environment, ${done.length} of them complete;`,
+    'min, median and max cover the complete ones. Times in seconds.',
   ].join('\n');
 }
 
