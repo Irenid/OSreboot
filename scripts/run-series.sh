@@ -13,6 +13,12 @@
 #   OSREBOOT_DEVICE    device id from config/devices.json, laptop by default
 #   PAUSE_S            seconds between runs, 60 by default
 #   TIMEOUT_S          seconds one run may take, 900 by default
+#   SAVE_DIR           where /api/state is saved after every run,
+#                      results/series-<UTC time> by default
+#
+# The server keeps only its last 10 transfers, about two runs, and
+# dist/downtime-figure.js needs those of the run it draws: hence a copy of
+# the state after every run.
 #
 # The series stops at the first run that does not end with the restored
 # system online: a failed recovery is never wiped again. Needs ssh, curl, jq.
@@ -25,6 +31,8 @@ port=${OSREBOOT_SSH_PORT:-2221}
 device=${OSREBOOT_DEVICE:-laptop}
 pause=${PAUSE_S:-60}
 timeout=${TIMEOUT_S:-900}
+save=${SAVE_DIR:-results/series-$(date -u +%Y%m%dT%H%M)}
+mkdir -p "$save"
 
 die() {
 	echo "run-series: $*" >&2
@@ -49,6 +57,8 @@ for i in $(seq 1 "$runs"); do
 	[ "$(state "$DEVICE | .status")" = online ] || die "$device is not online, see the status page"
 	# The checks of the wipe script: BootOrder, the iPXE entry, the partitions.
 	test_system osreboot-wipe >/dev/null || die "osreboot-wipe refused, run it on the test system to see why"
+	# The downloads can't be faster than the wired link: 100 Mb/s is about 11 MiB/s.
+	echo "   link $(test_system 'cat /sys/class/net/en*/speed 2>/dev/null | sort -rn | head -n 1' || echo '?') Mb/s"
 
 	since=$(state .now)
 	# The machine resets in the middle of the command, so ssh never ends cleanly.
@@ -62,7 +72,9 @@ for i in $(seq 1 "$runs"); do
 		waited=$((waited + 5))
 	done
 	echo "   downtime $(state "$DEVICE | .history[0] | (.end - .start) / 100 | round / 10") s"
+	curl -fsS --max-time 10 "${OSREBOOT_URL%/}/api/state" >"$save/state-$i.json" ||
+		echo "   could not save the state, the transfers of run $i are lost" >&2
 
 	[ "$i" = "$runs" ] || sleep "$pause"
 done
-echo "Sum up on the server: docker compose exec osreboot node dist/outage-stats.js data/outages.csv"
+echo "States are in $save. Sum up: node dist/outage-stats.js with the server's outages.csv, see README.md"
