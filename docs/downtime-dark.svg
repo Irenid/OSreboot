@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 478" width="960" height="478" role="img" aria-labelledby="title desc">
+<title id="title">Из чего сложились 165,7 с простоя</title>
+<desc id="desc">Сброс, прошивка, systemd-boot, iPXE: 0,0–24,4 с (24,4 с); Скачивание UKI, 132,3 MiB: 24,4–39,7 с (15,3 с); Старт среды восстановления в памяти: 39,7–68,2 с (28,5 с); Поиск разделов, SHA256SUMS: 68,2–69,0 с (0,8 с); Скачивание образов, 404,8 MiB: 69,0–110,7 с (41,7 с); Проверка SHA-256: 110,7–115,5 с (4,8 с); Запись, сверка, e2fsck, resize2fs: 115,5–123,8 с (8,3 с); BootNext, сохранение журнала: 123,8–124,1 с (0,3 с); Перезагрузка до первого heartbeat: 124,1–165,7 с (41,6 с)</desc>
+<rect x="0.5" y="0.5" width="959" height="477" rx="12" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<g font-family="'Adwaita Sans', Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'DejaVu Sans', sans-serif" style="font-variant-numeric: tabular-nums">
+<text x="24" y="40" font-size="17" font-weight="600" fill="#f0efec">Из чего сложились 165,7 с простоя</text>
+<text x="24" y="64" font-size="13" fill="#c3c2b7">23.10.2026 18:53 МСК: от последнего heartbeat перед затиранием до первого после восстановления</text>
+<rect x="24" y="84" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="44" y="94" font-size="13" fill="#f0efec">Загрузки машины · 94,5 с, 57 %</text>
+<rect x="340" y="84" width="12" height="12" rx="3" fill="#d95926"/>
+<text x="360" y="94" font-size="13" fill="#f0efec">Скачивание · 57,0 с, 34 %</text>
+<rect x="24" y="106" width="12" height="12" rx="3" fill="#199e70"/>
+<text x="44" y="116" font-size="13" fill="#f0efec">Проверка и запись · 13,1 с, 8 %</text>
+<rect x="340" y="106" width="12" height="12" rx="3" fill="#898781"/>
+<text x="360" y="116" font-size="13" fill="#f0efec">Прочее · 1,1 с, 1 %</text>
+<line x1="340" y1="142" x2="340" y2="412" stroke="#383835" stroke-width="1"/>
+<text x="340" y="430" font-size="12" fill="#898781" text-anchor="middle">0 с</text>
+<line x1="430" y1="142" x2="430" y2="412" stroke="#2c2c2a" stroke-width="1"/>
+<text x="430" y="430" font-size="12" fill="#898781" text-anchor="middle">30</text>
+<line x1="520" y1="142" x2="520" y2="412" stroke="#2c2c2a" stroke-width="1"/>
+<text x="520" y="430" font-size="12" fill="#898781" text-anchor="middle">60</text>
+<line x1="610" y1="142" x2="610" y2="412" stroke="#2c2c2a" stroke-width="1"/>
+<text x="610" y="430" font-size="12" fill="#898781" text-anchor="middle">90</text>
+<line x1="700" y1="142" x2="700" y2="412" stroke="#2c2c2a" stroke-width="1"/>
+<text x="700" y="430" font-size="12" fill="#898781" text-anchor="middle">120</text>
+<line x1="790" y1="142" x2="790" y2="412" stroke="#2c2c2a" stroke-width="1"/>
+<text x="790" y="430" font-size="12" fill="#898781" text-anchor="middle">150</text>
+<line x1="880" y1="142" x2="880" y2="412" stroke="#2c2c2a" stroke-width="1"/>
+<text x="880" y="430" font-size="12" fill="#898781" text-anchor="middle">180</text>
+<text x="24" y="161.5" font-size="13" fill="#c3c2b7">Сброс, прошивка, systemd-boot, iPXE</text>
+<rect x="340.0" y="150" width="73.2" height="14" rx="4" fill="#3987e5"/>
+<text x="419.2" y="161.5" font-size="12.5" fill="#f0efec">24,4 с</text>
+<text x="24" y="191.5" font-size="13" fill="#c3c2b7">Скачивание UKI, 132,3 MiB</text>
+<rect x="413.2" y="180" width="45.9" height="14" rx="4" fill="#d95926"/>
+<text x="465.1" y="191.5" font-size="12.5" fill="#f0efec">15,3 с</text>
+<text x="24" y="221.5" font-size="13" fill="#c3c2b7">Старт среды восстановления в памяти</text>
+<rect x="459.1" y="210" width="85.5" height="14" rx="4" fill="#3987e5"/>
+<text x="550.6" y="221.5" font-size="12.5" fill="#f0efec">28,5 с</text>
+<text x="24" y="251.5" font-size="13" fill="#c3c2b7">Поиск разделов, SHA256SUMS</text>
+<rect x="544.6" y="240" width="2.4" height="14" rx="1.1999999999999886" fill="#898781"/>
+<text x="553" y="251.5" font-size="12.5" fill="#f0efec">0,8 с</text>
+<text x="24" y="281.5" font-size="13" fill="#c3c2b7">Скачивание образов, 404,8 MiB</text>
+<rect x="547.0" y="270" width="125.1" height="14" rx="4" fill="#d95926"/>
+<text x="678.1" y="281.5" font-size="12.5" fill="#f0efec">41,7 с</text>
+<text x="24" y="311.5" font-size="13" fill="#c3c2b7">Проверка SHA-256</text>
+<rect x="672.1" y="300" width="14.4" height="14" rx="4" fill="#199e70"/>
+<text x="692.5" y="311.5" font-size="12.5" fill="#f0efec">4,8 с</text>
+<text x="24" y="341.5" font-size="13" fill="#c3c2b7">Запись, сверка, e2fsck, resize2fs</text>
+<rect x="686.5" y="330" width="24.9" height="14" rx="4" fill="#199e70"/>
+<text x="717.4" y="341.5" font-size="12.5" fill="#f0efec">8,3 с</text>
+<text x="24" y="371.5" font-size="13" fill="#c3c2b7">BootNext, сохранение журнала</text>
+<rect x="711.4" y="360" width="2.0" height="14" rx="1" fill="#898781"/>
+<text x="719.4" y="371.5" font-size="12.5" fill="#f0efec">0,3 с</text>
+<text x="24" y="401.5" font-size="13" fill="#c3c2b7">Перезагрузка до первого heartbeat</text>
+<rect x="712.3" y="390" width="124.8" height="14" rx="4" fill="#3987e5"/>
+<text x="843.1" y="401.5" font-size="12.5" fill="#f0efec">41,6 с</text>
+<text x="24" y="458" font-size="12" fill="#898781">Границы внутри сетевой загрузки взяты из журнала раздачи файлов: запрос boot.ipxe и конец передачи UKI.</text>
+</g>
+</svg>
