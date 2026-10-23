@@ -1,0 +1,98 @@
+import { readFile } from 'node:fs/promises';
+
+// Sums up data/outages.csv: one row per recovery with the time between its
+// stages, then the minimum, median and maximum of every column.
+//
+//   node dist/outage-stats.js [data/outages.csv] [device]
+//   docker compose exec osreboot node dist/outage-stats.js data/outages.csv
+
+export interface Run {
+  device: string;
+  start: string; // the last heartbeat before the outage, ISO time
+  downtime: number; // seconds
+  stages: Map<string, number>; // stage name -> seconds since the start
+}
+
+export type Column = 'netboot' | 'recovery' | 'download' | 'verify' | 'write' | 'restart' | 'total';
+
+// Each column runs from one stage to the next; 'start' is the last heartbeat
+// before the outage and 'end' the first one after it. Only a run started by
+// osreboot-wipe has a whole outage: the others began in the main system.
+const COLUMNS: readonly [Column, string, string][] = [
+  ['netboot', 'wipe', 'recovery'],
+  ['recovery', 'recovery', 'reboot'],
+  ['download', 'download', 'verify'],
+  ['verify', 'verify', 'write'],
+  ['write', 'write', 'bootloader'],
+  ['restart', 'reboot', 'end'],
+  ['total', 'start', 'end'],
+];
+
+// Outages without the recovery environment (network gaps, plain reboots) are left out.
+export function parseRuns(csv: string, device?: string): Run[] {
+  const runs: Run[] = [];
+  for (const line of csv.split('\n').slice(1)) {
+    const [id, start, , downtime, , stages = ''] = line.split(',');
+    if (!id || !start || !downtime || (device !== undefined && id !== device)) continue;
+    const map = new Map<string, number>();
+    for (const item of stages.split(' ')) {
+      const at = item.lastIndexOf('@');
+      const name = item.slice(0, at);
+      if (at > 0 && !map.has(name)) map.set(name, Number(item.slice(at + 1)));
+    }
+    if (map.has('recovery')) runs.push({ device: id, start, downtime: Number(downtime), stages: map });
+  }
+  return runs;
+}
+
+export function phases(run: Run): Record<Column, number | null> {
+  const at = (stage: string): number | undefined => {
+    if (stage === 'start') return run.stages.has('wipe') ? 0 : undefined;
+    if (stage === 'end') return run.downtime;
+    return run.stages.get(stage);
+  };
+  const result = {} as Record<Column, number | null>;
+  for (const [column, from, to] of COLUMNS) {
+    const a = at(from);
+    const b = at(to);
+    result[column] = a === undefined || b === undefined ? null : Math.round((b - a) * 10) / 10;
+  }
+  return result;
+}
+
+export function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? (sorted[mid] ?? NaN) : ((sorted[mid - 1] ?? NaN) + (sorted[mid] ?? NaN)) / 2;
+}
+
+export function table(runs: readonly Run[]): string {
+  const columns = COLUMNS.map(([column]) => column);
+  const cell = (v: number | null) => (v === null ? '—' : v.toFixed(1));
+  const rows = runs.map((run) => {
+    const p = phases(run);
+    return `| ${run.start.replace('T', ' ').slice(0, 19)}Z | ${run.device} | ${columns.map((c) => cell(p[c])).join(' | ')} |`;
+  });
+  const summary = (['min', 'median', 'max'] as const).map((stat) => {
+    const cells = columns.map((c) => {
+      const values = runs.map((run) => phases(run)[c]).filter((v): v is number => v !== null);
+      if (values.length === 0) return '—';
+      const value = stat === 'min' ? Math.min(...values) : stat === 'max' ? Math.max(...values) : median(values);
+      return value.toFixed(1);
+    });
+    return `| ${stat} | | ${cells.join(' | ')} |`;
+  });
+  return [
+    `| start (UTC) | device | ${columns.join(' | ')} |`,
+    `|---|---|${columns.map(() => '---:').join('|')}|`,
+    ...rows,
+    ...summary,
+    '',
+    `${runs.length} runs with the recovery environment, times in seconds.`,
+  ].join('\n');
+}
+
+if (import.meta.main) {
+  const [file = 'data/outages.csv', device] = process.argv.slice(2);
+  console.log(table(parseRuns(await readFile(file, 'utf8'), device)));
+}
