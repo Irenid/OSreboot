@@ -1,0 +1,9 @@
+device,start,end,downtime_s,rebooted,stages
+laptop,2026-10-23T03:25:36.120Z,2026-10-23T03:27:10.832Z,94.7,false,recovery@0.0 partition@0.1 download@0.8 verify@43.3 write@48.1 bootloader@56.2 reboot@56.4
+laptop,2026-10-23T03:30:10.855Z,2026-10-23T03:32:54.814Z,164.0,true,wipe@0.3 recovery@68.4 partition@68.5 download@69.1 verify@110.1 write@114.9 bootloader@123.2 reboot@123.5
+laptop,2026-10-23T03:37:59.698Z,2026-10-23T04:20:39.378Z,2559.7,true,
+laptop,2026-10-23T04:21:20.387Z,2026-10-23T06:12:35.553Z,6675.2,true,
+laptop,2026-10-23T11:45:05.602Z,2026-10-23T11:45:10.875Z,5.3,false,
+laptop,2026-10-23T11:45:44.985Z,2026-10-23T11:45:50.240Z,5.3,false,
+laptop,2026-10-23T14:50:28.448Z,2026-10-23T15:51:11.030Z,3642.6,true,recovery@3547.5 partition@3547.7 download@3548.4 verify@3588.1 write@3592.9 bootloader@3601.2 reboot@3601.5
+laptop,2026-10-23T15:53:47.335Z,2026-10-23T15:56:33.005Z,165.7,true,wipe@0.3 netboot@0.5 recovery@68.2 partition@68.4 download@69.0 verify@110.7 write@115.5 bootloader@123.8 reboot@124.1
