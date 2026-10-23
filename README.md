@@ -459,7 +459,7 @@ BMC, восстанавливает свою систему с образа из
 
 | Компонент | Где работает | Что делает |
 |---|---|---|
-| Сервер (`src/`, `web/`) | Домашняя машина без публичного адреса, опубликован через VPS (nginx и туннель FRP) | Принимает heartbeat и отчёты об этапах, считает простой, показывает страницу состояния, раздаёт файлы восстановления |
+| Сервер (`src/`, `web/`) | VPS, за nginx | Принимает heartbeat и отчёты об этапах, считает простой, показывает страницу состояния, раздаёт файлы восстановления |
 | Клиент (`client/`) | Тестовая система и среда восстановления | Скрипт на POSIX shell и curl: heartbeat раз в секунду и отчёты об этапах |
 | Тестовая система (`image/`) | Разделы `osreboot-esp` и `osreboot-root` | Arch Linux, собранный mkosi: systemd-boot, единый образ ядра (UKI), heartbeat, обратный SSH-туннель и команда `osreboot-wipe` |
 | iPXE (`ipxe/`) | Основной системный раздел EFI, который затирание не трогает | Сетевой загрузчик с HTTPS и встроенным сценарием; его запускает одноразовая запись systemd-boot |
@@ -598,9 +598,8 @@ iPXE при ошибке не возвращается в меню загруз�
 ## 4. Результаты
 
 Замеры сделаны 23.10.2026 на ноутбуке — потребительском, без BMC, с прошивкой
-Insyde, проводной сетью и NVMe-диском. Сервер работал на домашней машине без
-публичного адреса и был опубликован через VPS с одним виртуальным процессором
-(nginx и туннель FRP), поэтому все файлы шли к ноутбуку через VPS. Сжатые образы двух
+Insyde, проводной сетью и NVMe-диском. Сервер — VPS с одним виртуальным
+процессором: Node.js под systemd за nginx (`deploy/osreboot.service`). Сжатые образы двух
 разделов вместе занимают 404,8 MiB, UKI среды
 восстановления — 132,3 MiB. Все времена взяты по часам сервера: строки
 `data/outages.csv` лежат в `results/outages-2026-10-23.csv`, состояние сервера
@@ -1133,9 +1132,25 @@ node dist/outage-stats.js results/outages-2026-10-23.csv   # замеры раз
 
 ### Развёртывание
 
-У машины, на которой работает сервер, тоже нет публичного адреса. Сервер
-публикуется через VPS: туннель FRP передаёт порт 8090 на VPS, а nginx отдаёт
-его по пути `/osreboot/`.
+Сервер демонстрации работает прямо на VPS, без Docker: Node.js из `/opt/node`
+запускает `deploy/osreboot.service` под временным пользователем (`DynamicUser`)
+с ограничениями systemd. Код лежит в `/opt/osreboot` (`package.json` и `dist/`),
+состояние и `outages.csv` — в `/var/lib/osreboot`, файлы для раздачи — в
+`/srv/osreboot/files`, хеши токенов — в `/etc/osreboot/devices.json`. nginx
+на VPS проксирует к `127.0.0.1:8090`, то есть `REMOTE_PORT` в конфигах ниже —
+это 8090. Обновление сервера:
+
+```sh
+npm ci && npm run build
+tar czf - -C dist . | ssh root@VPS 'cd /opt/osreboot && rm -rf dist.new && mkdir dist.new &&
+	tar xzf - -C dist.new --no-same-owner && rm -rf dist && mv dist.new dist &&
+	systemctl restart osreboot'
+ssh root@VPS /opt/node/bin/node /opt/osreboot/dist/outage-stats.js /var/lib/osreboot/outages.csv
+```
+
+Если сервер работает на машине без публичного адреса, его можно опубликовать
+через VPS туннелем FRP: он передаёт порт 8090 на VPS, а nginx отдаёт его по
+пути `/osreboot/`.
 
 - `deploy/frpc-osreboot.toml` — запись туннеля для клиента FRP.
 - `deploy/nginx-osreboot.conf` содержит блоки `location` для nginx. Подключите

@@ -1,0 +1,47 @@
+# OSreboot on the VPS: status page, device API and image downloads.
+# nginx proxies /osreboot/ and osreboot.example.org to 127.0.0.1:8090.
+#   code:    /opt/osreboot (package.json + dist/), Node in /opt/node
+#   devices: /etc/osreboot/devices.json (token digests), passed as a credential
+#   images:  /srv/osreboot/files, state and outages.csv: /var/lib/osreboot
+[Unit]
+Description=OSreboot status and image server
+After=network.target
+
+[Service]
+ExecStart=/opt/node/bin/node /opt/osreboot/dist/server.js
+WorkingDirectory=/opt/osreboot
+Environment=NODE_ENV=production HOST=127.0.0.1 PORT=8090 HEARTBEAT_TIMEOUT_MS=3000
+Environment=DATA_DIR=/var/lib/osreboot FILES_DIR=/srv/osreboot/files
+Environment=DEVICES_FILE=/run/credentials/osreboot.service/devices.json
+LoadCredential=devices.json:/etc/osreboot/devices.json
+DynamicUser=yes
+StateDirectory=osreboot
+Restart=on-failure
+RestartSec=2
+
+# The VPS also runs the VPN: keep the server small.
+MemoryMax=256M
+TasksMax=64
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
