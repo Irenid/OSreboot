@@ -51,12 +51,12 @@ const STATUS: Record<Status, string> = {
 
 // Stage names sent by the recovery scripts. Unknown names are shown as they are.
 const STAGES: Record<string, string> = {
-  wipe: 'System wiped',
+  wipe: 'Wiping the system',
   netboot: 'Booting over the network',
   recovery: 'Recovery environment is up',
-  partition: 'Partitioning the disk',
+  partition: 'Finding the test partitions',
   download: 'Downloading the system image',
-  verify: 'Checking the signature',
+  verify: 'Checking the SHA-256 sums',
   write: 'Writing the image to disk',
   bootloader: 'Restoring the boot entry',
   reboot: 'Rebooting into the restored system',
