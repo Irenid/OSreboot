@@ -9,15 +9,17 @@
   },
   "main": "dist/server.js",
   "scripts": {
-    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p web",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p web && tsc --noEmit -p paper",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "build": "tsc -p tsconfig.build.json && tsc -p web && cp web/*.html web/style.css dist/web/",
+    "paper": "node paper/build.ts",
     "verify": "npm run typecheck && npm test && npm run build",
     "dev": "npm run build && tsx watch src/server.ts",
     "start": "node dist/server.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
+    "markdown-it": "^15.0.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
