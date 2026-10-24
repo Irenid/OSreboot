@@ -14,7 +14,7 @@
 #   PAUSE_S            seconds between runs, 60 by default
 #   TIMEOUT_S          seconds one run may take, 900 by default
 #   SAVE_DIR           where /api/state is saved after every run,
-#                      results/series-<UTC time> by default
+#                      results/series-<UTC time> of this repository by default
 #
 # The server keeps only its last 10 transfers, about two runs, and
 # dist/downtime-figure.js needs those of the run it draws: hence a copy of
@@ -31,7 +31,8 @@ port=${OSREBOOT_SSH_PORT:-2221}
 device=${OSREBOOT_DEVICE:-laptop}
 pause=${PAUSE_S:-60}
 timeout=${TIMEOUT_S:-900}
-save=${SAVE_DIR:-results/series-$(date -u +%Y%m%dT%H%M)}
+root=$(cd "$(dirname "$0")/.." && pwd)
+save=${SAVE_DIR:-$root/results/series-$(date -u +%Y%m%dT%H%M)}
 mkdir -p "$save"
 
 die() {

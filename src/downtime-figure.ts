@@ -5,8 +5,9 @@ import { complete, parseRuns, type Run } from './outage-stats.js';
 // Draws where the downtime of one wiped run went: an SVG timeline with a bar
 // per step, coloured by the kind of work. The steps come from the stage
 // reports in outages.csv, the boundaries inside the network boot from the
-// server's list of transfers in state.json. The text is in Russian, like
-// README.md.
+// server's list of transfers. Only /api/state has that list, the server's
+// state.json keeps just the devices: STATE_JSON is /api/state saved after the
+// run, as scripts/run-series.sh does. The text is in Russian, like README.md.
 //
 //   node dist/downtime-figure.js OUTAGES_CSV STATE_JSON [START] [--dark] >figure.svg
 //
@@ -57,7 +58,9 @@ export function steps(run: Run, transfers: readonly Transfer[]): Step[] {
     transfers.filter((t) => t.ok === true && t.end !== null && sec(t.start) >= from && sec(t.start) < to);
   const script = during(0, recovery).find((t) => t.file === 'boot.ipxe');
   const uki = during(0, recovery).find((t) => t.file === 'osreboot-recovery.efi');
-  if (!script || !uki?.end) throw new Error(`no transfers of boot.ipxe and the recovery environment in the run of ${run.start}`);
+  if (!script || !uki?.end) {
+    throw new Error(`no transfers of boot.ipxe and the recovery environment in the run of ${run.start} (the server keeps only its last 10)`);
+  }
   const images = during(download, verify).filter((t) => t.file.endsWith('.zst'));
   const imageSize = images.reduce((sum, t) => sum + t.size, 0);
   return [
@@ -200,5 +203,6 @@ if (import.meta.main) {
   const run = start ? runs.find((r) => r.start.startsWith(start)) : runs.at(-1);
   if (!run) throw new Error('no complete run of osreboot-wipe matches');
   const state = JSON.parse(await readFile(stateFile, 'utf8')) as { transfers?: Transfer[] };
-  process.stdout.write(figure(run, steps(run, state.transfers ?? []), dark));
+  if (!state.transfers) throw new Error(`${stateFile} has no transfers: give /api/state saved after the run, not the server's state.json`);
+  process.stdout.write(figure(run, steps(run, state.transfers), dark));
 }

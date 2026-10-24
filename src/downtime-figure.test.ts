@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import { figure, steps, totals, type Transfer } from './downtime-figure.js';
 import { parseRuns } from './outage-stats.js';
 
-// Run 4 of README.md: its line of outages.csv and the transfers of state.json.
+// Run 4 of README.md: its line of outages.csv and its transfers from
+// results/state-2026-10-23.json, a saved /api/state.
 const csv = [
   'device,start,end,downtime_s,rebooted,stages',
   'laptop,2026-10-23T15:53:47.335Z,2026-10-23T15:56:33.005Z,165.7,true,wipe@0.3 netboot@0.5 recovery@68.2 partition@68.4 download@69.0 verify@110.7 write@115.5 bootloader@123.8 reboot@124.1',
