@@ -134,7 +134,6 @@ pre {
   padding: 28px 24px 8px;
 }
 
-/* The tagline gives way to the connection text instead of pushing it to the next line. */
 .brand {
   display: flex;
   flex: 1 1 480px;
@@ -143,39 +142,12 @@ pre {
   max-width: 640px;
 }
 
-.logo {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  margin-top: 2px;
-}
-
-.logo rect {
-  fill: var(--accent);
-}
-
-.logo .ring {
-  fill: none;
-  stroke: #ffffff;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-}
-
-.logo .arrow {
-  fill: #ffffff;
-}
-
 .brand h1 {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.2;
-}
-
-.tagline {
-  margin-top: 2px;
-  color: var(--muted);
 }
 
 .controls {

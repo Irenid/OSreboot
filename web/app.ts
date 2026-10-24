@@ -92,7 +92,6 @@ const FILES = [
 
 const RU = {
   title: 'OSreboot — восстановление системы',
-  tagline: 'Ноутбук сам восстанавливает стёртую систему через интернет — без флешки и без человека. Здесь видно, что происходит прямо сейчас.',
   connecting: 'Подключение…',
   live: 'Обновляется в реальном времени',
   lost: 'Нет связи с сервером, переподключаюсь…',
@@ -194,7 +193,6 @@ type Texts = typeof RU;
 
 const EN: Texts = {
   title: 'OSreboot: system recovery',
-  tagline: 'A laptop restores its wiped system over the internet on its own — no USB stick, no one around. This page shows what is happening right now.',
   connecting: 'Connecting…',
   live: 'Live',
   lost: 'No connection to the server, reconnecting…',
@@ -807,7 +805,6 @@ function showLink(): void {
 function applyLang(): void {
   document.documentElement.lang = lang;
   document.title = t.title;
-  byId('tagline').textContent = t.tagline;
   byId('files-title').textContent = t.filesTitle;
   byId('files-lead').textContent = t.filesLead;
   byId('source-link').textContent = t.source;
