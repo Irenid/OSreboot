@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The "system destroyed" step of the demo, run on the test system: makes iPXE
-# the one-shot boot entry, wipes osreboot-esp and osreboot-root and resets the
+# the default boot entry, wipes osreboot-esp and osreboot-root and resets the
 # machine, which then boots iPXE and restores itself from the server.
 #   osreboot-wipe           checks and shows the plan, changes nothing
 #   osreboot-wipe --apply   wipes and resets the machine at once
@@ -9,9 +9,9 @@ set -euo pipefail
 ESP_LABEL=osreboot-esp
 ROOT_LABEL=osreboot-root
 IPXE_ENTRY=osreboot-ipxe.conf
-# The EFI variable systemd-boot takes the one-shot entry from; the number is
+# The EFI variable systemd-boot takes the default entry from; the number is
 # systemd-boot's vendor GUID.
-ONESHOT=/sys/firmware/efi/efivars/LoaderEntryOneShot-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+DEFAULT=/sys/firmware/efi/efivars/LoaderEntryDefault-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
 WIPE_MIB=64
 WORK=/run/osreboot-wipe
 
@@ -86,7 +86,8 @@ report() {
 }
 
 echo "Plan:"
-echo "  one-shot boot entry: $IPXE_ENTRY ($loader) on $main_esp, which Boot$first starts first"
+echo "  default boot entry: $IPXE_ENTRY ($loader) on $main_esp, which Boot$first starts first,"
+echo "    until the restored system has started"
 echo "  stop osreboot-heartbeat.service, report the stage wipe to ${OSREBOOT_URL:-nowhere}"
 echo "  overwrite the first $WIPE_MIB MiB of $esp ($ESP_LABEL) and $root ($ROOT_LABEL)"
 echo "  reset the machine at once"
@@ -95,18 +96,22 @@ if [ $apply != yes ]; then
 	exit 0
 fi
 
-# A BootNext would be booted before BootOrder.
+# A BootNext would be booted before BootOrder, a one-shot entry before the default.
 efibootmgr --delete-bootnext >/dev/null 2>&1 || true
-bootctl set-oneshot "$IPXE_ENTRY"
+bootctl set-oneshot ""
+# The default, not a one-shot entry: it survives a power cut and a failed
+# network boot, so every boot goes to iPXE until the restored system starts
+# and osreboot-netboot-off removes it.
+bootctl set-default "$IPXE_ENTRY"
 # Read it back: the variable file holds 4 bytes of attributes, then the name in
 # UTF-16, where every other byte is zero.
-[ "$(tail -c +5 "$ONESHOT" | tr -d '\0')" = "$IPXE_ENTRY" ] || die "the one-shot entry was not set"
+[ "$(tail -c +5 "$DEFAULT" | tr -d '\0')" = "$IPXE_ENTRY" ] || die "the default entry was not set"
 # Any heartbeat would close the outage on the server.
 systemctl stop osreboot-heartbeat.service
 report wipe - "overwriting $ESP_LABEL and $ROOT_LABEL"
 # The last report goes out while the system is whole: after the wipe a report
 # did not reach the server (2026-10-23). The wipe itself takes under a second.
-report netboot - "wiped, rebooting into the network boot, one-shot $IPXE_ENTRY"
+report netboot - "wiped, rebooting into the network boot, default $IPXE_ENTRY"
 # sysrq "u": the kernel makes every file system read-only, so that none writes
 # its metadata back over the zeros. The block devices stay writable.
 sync

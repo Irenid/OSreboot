@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Restores the test system from the OSreboot server, running from memory in the
 # recovery environment: downloads and checks the images, writes them into
-# osreboot-esp and osreboot-root, sets BootNext and reboots. On an error it stops
-# writing and restarts the machine into its own system after FALLBACK_MIN minutes.
+# osreboot-esp and osreboot-root, sets BootNext and reboots. Network problems only
+# pause it. On an error it stops writing and restarts the machine into its own
+# system after FALLBACK_MIN minutes.
 set -Eeuo pipefail
 
 ESP_LABEL=osreboot-esp
@@ -21,6 +22,10 @@ ESP_MAX=$((4 * GIB))
 ROOT_MAX=$((128 * GIB))
 ENTRY_LABEL="OSreboot test"
 FALLBACK_MIN=20
+# Seconds between tries while the server does not answer.
+RETRY_S=10
+# Images that arrive damaged are downloaded again, at most this many times.
+DOWNLOAD_TRIES=3
 # systemd-boot on the test ESP, in the firmware's path notation.
 LOADER='\EFI\systemd\systemd-bootx64.efi'
 # In memory, like everything here: /run is a tmpfs.
@@ -52,8 +57,9 @@ fail() {
 	report failed - "$*"
 	echo "!! Nothing more is written. Log in on tty1 or over SSH to look around."
 	[ "$in_memory" = yes ] || exit 1
-	# BootNext and the one-shot entry are used up: the restart boots the
-	# first entry of BootOrder, the machine's own system.
+	# Otherwise every boot would come back here and stop again. BootNext is
+	# used up too, so the restart boots the machine's own system.
+	osreboot-netboot-off || echo "!! Could not turn the network boot off."
 	if systemd-run --quiet --unit=osreboot-fallback-reboot --on-active="${FALLBACK_MIN}min" systemctl reboot; then
 		echo "!! The machine restarts into its own system in $FALLBACK_MIN min; to stay, run"
 		echo "!!   systemctl stop osreboot-fallback-reboot.timer"
@@ -66,12 +72,25 @@ fail() {
 # trap does nothing: the failure comes back to the main shell and fails there.
 trap '[ "$BASH_SUBSHELL" -gt 0 ] || fail "command failed at line $LINENO: $BASH_COMMAND"' ERR
 
-# A transfer slower than 1 KiB/s for a minute counts as failed and is retried:
-# without a limit a stalled connection would hang the recovery for good.
+# One request to the server. A transfer slower than 1 KiB/s for a minute
+# counts as failed: without a limit a stalled connection would hang for good.
 fetch() {
 	curl --fail --silent --show-error --location --connect-timeout 10 \
-		--speed-limit 1024 --speed-time 60 \
-		--retry 5 --retry-all-errors --retry-delay 2 "$@"
+		--speed-limit 1024 --speed-time 60 "$@"
+}
+
+# Runs the command $@ until it succeeds: a pulled cable or a restarted server
+# only pauses the recovery.
+until_ok() {
+	until "$@"; do
+		echo "   no answer from the server, trying again in $RETRY_S s"
+		sleep "$RETRY_S"
+	done
+}
+
+# The size of file $1 in bytes, 0 if it is not there yet.
+file_size() {
+	stat -c %s "$1" 2>/dev/null || echo 0
 }
 
 # Sets $partition to the only partition labelled $1. Not esp=$(...): fail()
@@ -139,47 +158,85 @@ disk=/dev/$(lsblk -no PKNAME "$esp")
 [ "$disk" = "/dev/$(lsblk -no PKNAME "$root")" ] || fail "$esp and $root are on different disks"
 echo "   $esp ($ESP_LABEL) and $root ($ROOT_LABEL) on $disk"
 
-say "Downloading the images from $FILES"
-fetch -o "$WORK/SHA256SUMS" "$FILES/SHA256SUMS"
-# The sizes from HEAD requests (Content-Length): for the percentage and to
-# check that each download is complete.
-declare -A compressed_size
-total=0
-for image in $ESP_IMAGE $ROOT_IMAGE; do
-	compressed_size[$image]=$(fetch --head "$FILES/$image.zst" | tr -d '\r' |
-		awk 'tolower($1) == "content-length:" { n = $2 } END { print n + 0 }')
-	[ "${compressed_size[$image]}" -gt 0 ] || fail "the server reports no size for $image.zst"
-	total=$((total + compressed_size[$image]))
-done
-done_bytes=0
-for image in $ESP_IMAGE $ROOT_IMAGE; do
-	# curl runs in the background; every 2 s the loop reports how much has arrived.
-	fetch -o "$WORK/$image.zst" "$FILES/$image.zst" &
-	pid=$!
-	while running "$pid"; do
-		got=$(stat -c %s "$WORK/$image.zst" 2>/dev/null || echo 0)
-		percent=$(((done_bytes + got) * 100 / total))
-		printf '   %s: %3d%% of %d MiB\n' "$image.zst" "$percent" $((total / MIB))
-		report download "$percent" "$image.zst"
-		sleep 2
-	done
-	wait "$pid" || fail "could not download $image.zst"
-	[ "$(stat -c %s "$WORK/$image.zst")" = "${compressed_size[$image]}" ] || fail "$image.zst is incomplete"
-	done_bytes=$((done_bytes + compressed_size[$image]))
-done
-report download 100 "$((total / MIB)) MiB in $((SECONDS - started)) s"
+# Sets compressed_size[$1] to the size of $1 on the server (Content-Length of
+# a HEAD request), for the percentage and to know when a download is complete.
+size_on_server() {
+	local headers
+	headers=$(fetch --head "$FILES/$1") || return 1
+	compressed_size[$1]=$(tr -d '\r' <<<"$headers" | awk 'tolower($1) == "content-length:" { n = $2 } END { print n + 0 }')
+}
 
-say "Checking the images against SHA256SUMS"
-report verify - "SHA-256 of both images"
-declare -A size checksum
-for image in $ESP_IMAGE $ROOT_IMAGE; do
-	# A line of SHA256SUMS is "SUM  NAME", or "SUM *NAME" in binary mode.
-	checksum[$image]=$(awk -v f="$image" '$2 == f || $2 == "*" f { print $1 }' "$WORK/SHA256SUMS")
-	[ -n "${checksum[$image]}" ] || fail "SHA256SUMS has no line for $image"
-	[ "$(zstd -dcq "$WORK/$image.zst" | sha256sum | cut -d' ' -f1)" = "${checksum[$image]}" ] ||
-		fail "$image.zst does not match SHA256SUMS"
-	size[$image]=$(zstd -dcq "$WORK/$image.zst" | wc -c)
-	echo "   $image: $((size[$image] / MIB)) MiB, checksum matches"
+# How much of all images has arrived while $1 downloads, in percent.
+percent_done() {
+	echo $(((done_bytes + $(file_size "$WORK/$1")) * 100 / total))
+}
+
+# Downloads $1 into $WORK; every 2 s it reports how much has arrived. When the
+# connection breaks off, the next try resumes (-C -) from the bytes already
+# there instead of starting over.
+download() {
+	local file=$1 pid percent
+	while [ "$(file_size "$WORK/$file")" -lt "${compressed_size[$file]}" ]; do
+		fetch -C - -o "$WORK/$file" "$FILES/$file" &
+		pid=$!
+		while running "$pid"; do
+			percent=$(percent_done "$file")
+			printf '   %s: %3d%% of %d MiB\n' "$file" "$percent" $((total / MIB))
+			report download "$percent" "$file"
+			sleep 2
+		done
+		if ! wait "$pid"; then
+			echo "   the download of $file broke off, resuming in $RETRY_S s"
+			report download "$(percent_done "$file")" "$file: no connection, resuming"
+			sleep "$RETRY_S"
+		fi
+	done
+}
+
+# Checks both images against SHA256SUMS and sets size and checksum; returns 1
+# if one is damaged.
+verify_images() {
+	local image file
+	for image in $ESP_IMAGE $ROOT_IMAGE; do
+		file=$WORK/$image.zst
+		# A line of SHA256SUMS is "SUM  NAME", or "SUM *NAME" in binary mode.
+		checksum[$image]=$(awk -v f="$image" '$2 == f || $2 == "*" f { print $1 }' "$WORK/SHA256SUMS")
+		[ -n "${checksum[$image]}" ] || fail "SHA256SUMS has no line for $image"
+		if [ "$(file_size "$file")" != "${compressed_size[$image.zst]}" ] ||
+			[ "$(zstd -dcq "$file" | sha256sum | cut -d' ' -f1)" != "${checksum[$image]}" ]; then
+			echo "   $image.zst does not match SHA256SUMS"
+			return 1
+		fi
+		size[$image]=$(zstd -dcq "$file" | wc -c)
+		echo "   $image: $((size[$image] / MIB)) MiB, checksum matches"
+	done
+}
+
+declare -A compressed_size size checksum
+for try in $(seq $DOWNLOAD_TRIES); do
+	say "Downloading the images from $FILES"
+	rm -f "$WORK"/*.zst
+	until_ok fetch -o "$WORK/SHA256SUMS" "$FILES/SHA256SUMS"
+	total=0
+	for image in $ESP_IMAGE $ROOT_IMAGE; do
+		until_ok size_on_server "$image.zst"
+		[ "${compressed_size[$image.zst]}" -gt 0 ] || fail "the server reports no size for $image.zst"
+		total=$((total + compressed_size[$image.zst]))
+	done
+	done_bytes=0
+	for image in $ESP_IMAGE $ROOT_IMAGE; do
+		download "$image.zst"
+		done_bytes=$((done_bytes + compressed_size[$image.zst]))
+	done
+	report download 100 "$((total / MIB)) MiB in $((SECONDS - started)) s"
+
+	say "Checking the images against SHA256SUMS"
+	report verify - "SHA-256 of both images"
+	if verify_images; then
+		break
+	fi
+	[ "$try" -lt $DOWNLOAD_TRIES ] || fail "the images do not match SHA256SUMS after $DOWNLOAD_TRIES downloads"
+	echo "   downloading them again"
 done
 
 say "Checking that the partitions may be overwritten"

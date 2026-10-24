@@ -9,6 +9,7 @@ export interface Run {
   start: string; // the last heartbeat before the outage, ISO time
   downtime: number; // seconds
   stages: Map<string, number>; // stage name -> seconds since the start
+  retried: boolean; // a stage came twice: the recovery started over within the outage
 }
 
 export type Column = 'netboot' | 'recovery' | 'download' | 'verify' | 'write' | 'restart' | 'total';
@@ -31,7 +32,8 @@ export function complete(run: Run): boolean {
 }
 
 function outcome(run: Run): string {
-  return complete(run) ? 'ok' : `stopped at ${[...run.stages.keys()].at(-1) ?? 'start'}`;
+  if (!complete(run)) return `stopped at ${[...run.stages.keys()].at(-1) ?? 'start'}`;
+  return run.retried ? 'ok, started over' : 'ok';
 }
 
 // Reads the lines of outages.csv (see csvLine in store.ts). Outages without the
@@ -42,14 +44,17 @@ export function parseRuns(csv: string, device?: string): Run[] {
     const [id, start, _end, downtime, _rebooted, stages = ''] = line.split(',');
     if (!id || !start || !downtime || (device !== undefined && id !== device)) continue;
     // "download@69.1" is the stage download, 69.1 s after the start. If a stage
-    // comes twice, as in a recovery retried within one outage, the first one counts.
+    // comes twice, as after a power cut, the first one counts.
     const times = new Map<string, number>();
+    let retried = false;
     for (const item of stages.split(' ')) {
       const at = item.lastIndexOf('@');
+      if (at <= 0) continue;
       const name = item.slice(0, at);
-      if (at > 0 && !times.has(name)) times.set(name, Number(item.slice(at + 1)));
+      if (times.has(name)) retried = true;
+      else times.set(name, Number(item.slice(at + 1)));
     }
-    if (times.has('recovery')) runs.push({ device: id, start, downtime: Number(downtime), stages: times });
+    if (times.has('recovery')) runs.push({ device: id, start, downtime: Number(downtime), stages: times, retried });
   }
   return runs;
 }
@@ -75,8 +80,8 @@ export function median(values: readonly number[]): number {
   return sorted.length % 2 ? (sorted[mid] ?? NaN) : ((sorted[mid - 1] ?? NaN) + (sorted[mid] ?? NaN)) / 2;
 }
 
-// Every run gets a row; min, median and max cover only the complete runs,
-// because the outage of an incomplete one says nothing about the recovery.
+// Every run gets a row; min, median and max cover only the runs that went
+// through in one go: an incomplete or restarted one mixes in other waits.
 export function table(runs: readonly Run[]): string {
   const columns = COLUMNS.map(([column]) => column);
   const cell = (v: number | null) => (v === null ? '—' : v.toFixed(1));
@@ -84,7 +89,7 @@ export function table(runs: readonly Run[]): string {
     const p = phases(run);
     return `| ${run.start.replace('T', ' ').slice(0, 19)}Z | ${run.device} | ${columns.map((c) => cell(p[c])).join(' | ')} | ${outcome(run)} |`;
   });
-  const done = runs.filter(complete);
+  const done = runs.filter((run) => complete(run) && !run.retried);
   const summary = (['min', 'median', 'max'] as const).map((stat) => {
     const cells = columns.map((c) => {
       const values = done.map((run) => phases(run)[c]).filter((v): v is number => v !== null);
@@ -100,8 +105,8 @@ export function table(runs: readonly Run[]): string {
     ...rows,
     ...summary,
     '',
-    `${runs.length} runs with the recovery environment, ${done.length} of them complete;`,
-    'min, median and max cover the complete ones. Times in seconds.',
+    `${runs.length} runs with the recovery environment, ${done.length} of them complete in one go;`,
+    'min, median and max cover those. Times in seconds.',
   ].join('\n');
 }
 

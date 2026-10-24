@@ -6,3 +6,4 @@ enable sshd.service
 enable osreboot-heartbeat.service
 enable osreboot-ssh-host-key.service
 enable osreboot-tunnel.service
+enable osreboot-netboot-off.service

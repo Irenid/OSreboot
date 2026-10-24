@@ -4,5 +4,5 @@
 echo Loading the OSreboot recovery environment
 chain --autofree osreboot-recovery.efi ||
 echo Could not start the recovery environment.
-# Back to the script built into ipxe.efi, which restarts the machine.
+# Back to the script built into ipxe.efi, which starts over.
 exit 1

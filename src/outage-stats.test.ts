@@ -16,6 +16,11 @@ const csv = [
 const cutOff =
   'laptop,2026-10-23T16:10:00.000Z,2026-10-23T17:10:00.000Z,3600.0,true,wipe@0.3 netboot@0.5 recovery@70.0 partition@70.2 download@70.9';
 
+// The power went off during the write: after the next boot iPXE started the
+// recovery again, and it went through.
+const restarted =
+  'laptop,2026-10-24T09:00:00.000Z,2026-10-24T09:05:00.000Z,300.0,true,wipe@0.3 netboot@0.5 recovery@68.0 partition@68.2 download@69.0 verify@110.0 write@115.0 recovery@200.0 partition@200.2 download@201.0 verify@242.0 write@247.0 bootloader@255.0 reboot@255.3';
+
 test('parseRuns keeps only outages with the recovery environment', () => {
   const runs = parseRuns(csv);
   assert.equal(runs.length, 2);
@@ -37,7 +42,19 @@ test('the summary leaves out incomplete runs but the table still shows them', ()
   assert.equal(lines[4], '| 2026-10-23 16:10:00Z | laptop | 69.7 | — | — | — | — | — | 3600.0 | stopped at download |');
   // With the cut-off run the medians of netboot and total would be 68.8 and 1882.9.
   assert.match(lines[6] ?? '', /^\| median \| \| 67\.9 \| .* \| 165\.7 \| \|$/);
-  assert.equal(lines.at(-2), '3 runs with the recovery environment, 2 of them complete;');
+  assert.equal(lines.at(-2), '3 runs with the recovery environment, 2 of them complete in one go;');
+});
+
+test('a recovery started over is shown but left out of the summary', () => {
+  const runs = parseRuns(csv + restarted);
+  assert.deepEqual(
+    runs.map((run) => run.retried),
+    [false, false, true],
+  );
+  const lines = table(runs).split('\n');
+  assert.match(lines[4] ?? '', /\| 300\.0 \| ok, started over \|$/);
+  assert.match(lines[6] ?? '', /^\| median \| \| 67\.9 \| .* \| 165\.7 \| \|$/);
+  assert.equal(lines.at(-2), '3 runs with the recovery environment, 2 of them complete in one go;');
 });
 
 test('phases measure from stage to stage and to the first heartbeat', () => {

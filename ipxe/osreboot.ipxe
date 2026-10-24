@@ -1,21 +1,18 @@
 #!ipxe
 # Built into ipxe.efi by build.sh: DHCP, DNS, then boot.ipxe from the server over
-# HTTPS. On any failure it restarts the machine: the one-shot entry is used up, so
-# it boots its own system, while the boot menu would wait for a key press.
+# HTTPS. After any failure it starts over in 10 s, for as long as it takes: a
+# pulled cable or a server restart only pauses it.
 # "cmd && goto x ||": on success go to :x, on failure go on to the next line.
 echo OSreboot network boot (iPXE ${version})
 # build.sh puts the server name here.
 set host @HOST@
 
-# Up to 5 tries, 3 s apart.
-set tries:int32 0
-:dhcp
+:start
+# A public DNS server set in the previous round would stay: drop it.
+clear dns ||
 dhcp && goto configured ||
-inc tries
-iseq ${tries} 5 && goto failed ||
-echo DHCP failed, retry ${tries} in 3 s
-sleep 3
-goto dhcp
+echo DHCP failed: no cable or no DHCP server
+goto retry
 :configured
 echo Address ${net0/ip}, gateway ${net0/gateway}, DNS ${dns}
 
@@ -37,14 +34,14 @@ echo 1.1.1.1 failed, trying 8.8.8.8
 set dns 8.8.8.8
 nslookup server ${host} && goto resolved ||
 echo No DNS server resolved ${host}
-goto failed
+goto retry
 
 :resolved
 echo ${host} is ${server} (DNS ${dns})
 # boot.ipxe starts the recovery environment; it only comes back if that fails.
 chain --autofree https://${host}/files/boot.ipxe ||
 
-:failed
-echo The network boot failed.
-prompt --key 0x02 --timeout 60000 Press Ctrl-B within 60 s for the iPXE shell, or the machine restarts && shell ||
-reboot
+:retry
+echo The network boot failed, starting over.
+prompt --key 0x02 --timeout 10000 Press Ctrl-B within 10 s for the iPXE shell && shell ||
+goto start

@@ -22,7 +22,8 @@ if [ "$(git -C "$work" rev-parse -q --verify HEAD || true)" != "$IPXE_COMMIT" ];
 	git -C "$work" checkout -q --detach FETCH_HEAD
 fi
 
-# Build options beyond the defaults: HTTPS and the commands osreboot.ipxe uses.
+# Build options beyond the defaults: HTTPS, nslookup for osreboot.ipxe, and
+# ping, reboot and poweroff for a person at the iPXE shell.
 cat >"$work/src/config/local/general.h" <<'EOF'
 #define DOWNLOAD_PROTO_HTTPS
 #define NSLOOKUP_CMD

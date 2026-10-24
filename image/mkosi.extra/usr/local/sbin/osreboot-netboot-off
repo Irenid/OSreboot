@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Undoes the default boot entry osreboot-wipe set: systemd-boot of the main ESP
+# boots its own default entry again instead of iPXE. Run by the restored test
+# system when it starts and by the recovery when it gives up.
+set -euo pipefail
+
+IPXE_ENTRY=osreboot-ipxe.conf
+DEFAULT=/sys/firmware/efi/efivars/LoaderEntryDefault-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+
+# The variable file holds 4 bytes of attributes, then the name in UTF-16.
+# Another default entry is someone else's: leave it.
+[ -f "$DEFAULT" ] && [ "$(tail -c +5 "$DEFAULT" | tr -d '\0')" = "$IPXE_ENTRY" ] || exit 0
+# An empty name removes the variable.
+bootctl set-default ""
+echo "osreboot-netboot-off: the next boot no longer goes to iPXE"

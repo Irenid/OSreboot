@@ -193,9 +193,12 @@ if (import.meta.main) {
   const dark = args.includes('--dark');
   const [csvFile, stateFile, start] = args.filter((a) => a !== '--dark');
   if (!csvFile || !stateFile) throw new Error('usage: downtime-figure.js OUTAGES_CSV STATE_JSON [START] [--dark]');
-  const runs = parseRuns(await readFile(csvFile, 'utf8')).filter((run) => complete(run) && run.stages.has('wipe'));
+  // A run that started over mixes two attempts on one time line: left out.
+  const runs = parseRuns(await readFile(csvFile, 'utf8')).filter(
+    (run) => complete(run) && !run.retried && run.stages.has('wipe'),
+  );
   const run = start ? runs.find((r) => r.start.startsWith(start)) : runs.at(-1);
-  if (!run) throw new Error('no complete run of osreboot-wipe matches');
+  if (!run) throw new Error('no run of osreboot-wipe that went through in one go matches');
   const state = JSON.parse(await readFile(stateFile, 'utf8')) as { transfers?: Transfer[] };
   if (!state.transfers) throw new Error(`${stateFile} has no transfers: give /api/state saved after the run, not the server's state.json`);
   process.stdout.write(figure(run, steps(run, state.transfers), dark));
