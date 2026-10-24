@@ -134,11 +134,13 @@ pre {
   padding: 28px 24px 8px;
 }
 
+/* The tagline gives way to the connection text instead of pushing it to the next line. */
 .brand {
   display: flex;
+  flex: 1 1 480px;
   gap: 14px;
   align-items: flex-start;
-  max-width: 580px;
+  max-width: 640px;
 }
 
 .logo {
