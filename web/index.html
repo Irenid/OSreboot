@@ -1,25 +1,49 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Recovery status</title>
-<link rel="icon" href="data:,">
+<title>OSreboot — восстановление системы</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='7' fill='%232f6fed'/%3E%3Cpath d='M15.86 7.4A6 6 0 1 1 8.14 7.4' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M9.83 5.99 6.14 5.95 9.22 9.63Z' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 <script type="module" src="app.js"></script>
 </head>
 <body>
-<main>
-  <header class="top">
-    <h1>Recovery status</h1>
-    <p id="link" class="link">Connecting…</p>
-  </header>
+<header class="site">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+      <rect width="24" height="24" rx="7"/>
+      <path class="ring" d="M15.86 7.4A6 6 0 1 1 8.14 7.4"/>
+      <path class="arrow" d="M9.83 5.99 6.14 5.95 9.22 9.63Z"/>
+    </svg>
+    <div>
+      <h1>OSreboot</h1>
+      <p id="tagline" class="tagline">Ноутбук сам восстанавливает стёртую систему через интернет — без флешки и без человека. Здесь видно, что происходит прямо сейчас.</p>
+    </div>
+  </div>
+  <div class="controls">
+    <p id="link" class="link">Подключение…</p>
+    <div class="lang" role="group" aria-label="Язык / Language">
+      <button type="button" data-lang="ru">RU</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+  </div>
+</header>
+<main class="status">
   <div id="devices"></div>
-  <section class="panel">
-    <h2>Downloads from this server</h2>
-    <div id="transfers"></div>
+  <section class="files" aria-labelledby="files-title">
+    <div class="section-head">
+      <h2 id="files-title">Файлы на сервере</h2>
+      <p id="files-url" class="mono"></p>
+    </div>
+    <p id="files-lead" class="lead">Всё, что ноутбук скачивает для восстановления, в порядке скачивания.</p>
+    <ul id="files" class="file-list"></ul>
   </section>
 </main>
+<footer class="site">
+  <a id="source-link" href="https://github.com/Irenid/OSreboot" rel="noopener">Исходный код</a>
+  <a id="probe-link" href="probe">Проверка доступа к серверу</a>
+</footer>
 </body>
 </html>
