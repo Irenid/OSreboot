@@ -3,16 +3,15 @@
 
 type State = 'run' | 'ok' | 'warn' | 'bad';
 
-interface Pulled {
-  got: number;
-  all: number;
-  body: number;
+interface Downloaded {
+  bytes: number;
+  ms: number; // from the response headers to the last byte
 }
 
 interface Failed {
-  got: number;
-  err: string;
-  stalled: boolean;
+  bytes: number; // what arrived before the failure
+  error: string;
+  stalled: boolean; // no new data for STALL_MS
 }
 
 interface WhoAmI {
@@ -36,7 +35,7 @@ const num = (x: number, digits = 1) => x.toLocaleString('en-US', { maximumFracti
 const kb = (b: number) => `${num(b / 1024, 0)} KB`;
 const mb = (b: number) => `${num(b / 1048576)} MB`;
 const ms = (t: number) => (t < 1000 ? `${Math.round(t)} ms` : `${num(t / 1000)} s`);
-const median = (a: number[]) => [...a].sort((x, y) => x - y)[a.length >> 1] ?? 0;
+const median = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0;
 const fresh = (path: string) => `${BASE}${path}?t=${Date.now()}`; // a new URL every time, past any cache
 
 function dur(seconds: number): string {
@@ -62,34 +61,33 @@ function watchdog(limit: number) {
 }
 
 // Downloads a file as a stream. Gives up after STALL_MS without new data and reports how much arrived.
-async function pull(path: string, progress?: (got: number, total: number) => void): Promise<Pulled | Failed> {
-  const w = watchdog(STALL_MS);
-  const t0 = performance.now();
-  let got = 0;
+async function download(path: string, progress?: (bytes: number, total: number) => void): Promise<Downloaded | Failed> {
+  const timer = watchdog(STALL_MS);
+  let bytes = 0;
   try {
-    const res = await fetch(fresh(path), { cache: 'no-store', signal: w.signal });
+    const res = await fetch(fresh(path), { cache: 'no-store', signal: timer.signal });
     if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
     const total = Number(res.headers.get('content-length')) || 0;
     const reader = res.body.getReader();
-    const t1 = performance.now();
+    const bodyStart = performance.now(); // the speed leaves out the time to connect
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      got += value.length;
-      w.arm();
-      progress?.(got, total);
+      bytes += value.length;
+      timer.arm();
+      progress?.(bytes, total);
     }
-    return { got, all: performance.now() - t0, body: performance.now() - t1 };
+    return { bytes, ms: performance.now() - bodyStart };
   } catch (e) {
-    return { got, err: e instanceof Error ? e.message : String(e), stalled: w.signal.aborted };
+    return { bytes, error: e instanceof Error ? e.message : String(e), stalled: timer.signal.aborted };
   } finally {
-    w.stop();
+    timer.stop();
   }
 }
 
-function why(x: Failed): string {
-  if (!x.stalled) return x.err === 'HTTP 404' ? 'the file is not on the server (HTTP 404)' : x.err;
-  return x.got ? `stalled after ${kb(x.got)}` : `no response in ${ms(STALL_MS)}`;
+function failureText(result: Failed): string {
+  if (!result.stalled) return result.error === 'HTTP 404' ? 'the file is not on the server (HTTP 404)' : result.error;
+  return result.bytes ? `stalled after ${kb(result.bytes)}` : `no response in ${ms(STALL_MS)}`;
 }
 
 const checks = byId('checks');
@@ -135,71 +133,74 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text 
   return node;
 }
 
+// Five requests: the round-trip time, the public address the server sees,
+// and how far the clock of this device is off.
 async function checkServer(): Promise<void> {
-  const r = row('Server response');
-  const rtts: number[] = [];
+  const check = row('Server response');
+  const times: number[] = [];
   let info: WhoAmI | null = null;
   let skew = 0;
   try {
     for (let i = 0; i < 5; i++) {
-      const w = watchdog(STALL_MS);
+      const timer = watchdog(STALL_MS);
       const sent = Date.now();
-      const t0 = performance.now();
-      const res = await fetch(fresh('api/probe/whoami'), { cache: 'no-store', signal: w.signal });
+      const started = performance.now();
+      const res = await fetch(fresh('api/probe/whoami'), { cache: 'no-store', signal: timer.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       info = (await res.json()) as WhoAmI;
-      w.stop();
-      const rtt = performance.now() - t0;
-      rtts.push(rtt);
+      timer.stop();
+      const rtt = performance.now() - started;
+      times.push(rtt);
       skew = info.msec * 1000 - (sent + rtt / 2); // > 0: the server clock is ahead of this device
     }
   } catch (e) {
-    r.done('bad', errorText(e));
+    check.done('bad', errorText(e));
     return;
   }
   if (!info) return;
-  let text = `${ms(median(rtts))} (median of 5) · public IP ${info.ip} · ${info.proto}`;
+  let text = `${ms(median(times))} (median of 5) · public IP ${info.ip} · ${info.proto}`;
   if (Math.abs(skew) > 2000) text += ` · this device's clock is ${num(Math.abs(skew) / 1000)} s ${skew > 0 ? 'behind' : 'ahead'}`;
-  r.done('ok', text);
+  check.done('ok', text);
 }
 
 async function checkSpeed(label: string, path: string): Promise<void> {
-  const r = row(`Download ${label}`);
-  const x = await pull(path, (got, total) =>
-    r.set('run', total ? `${mb(got)} of ${mb(total)}` : mb(got), total ? got / total : null),
+  const check = row(`Download ${label}`);
+  const result = await download(path, (bytes, total) =>
+    check.set('run', total ? `${mb(bytes)} of ${mb(total)}` : mb(bytes), total ? bytes / total : null),
   );
-  if ('err' in x) {
-    r.done('bad', why(x));
+  if ('error' in result) {
+    check.done('bad', failureText(result));
     return;
   }
-  const mbit = (x.got * 8) / x.body / 1000; // bytes * 8 / ms / 1000 = Mbit/s
-  r.done('ok', `${num(mbit)} Mbit/s · a ${IMAGE_MB} MB image takes about ${dur((IMAGE_MB * 8) / mbit)}`);
+  const mbit = (result.bytes * 8) / result.ms / 1000; // bytes * 8 / ms / 1000 = Mbit/s
+  check.done('ok', `${num(mbit)} Mbit/s · a ${IMAGE_MB} MB image takes about ${dur((IMAGE_MB * 8) / mbit)}`);
 }
 
 async function checkPost(): Promise<void> {
-  const r = row('POST, like a heartbeat');
+  const check = row('POST, like a heartbeat');
   const times: number[] = [];
-  let last = '';
+  let lastError = '';
   for (let i = 0; i < 3; i++) {
-    const w = watchdog(STALL_MS);
-    const t0 = performance.now();
+    const timer = watchdog(STALL_MS);
+    const started = performance.now();
     try {
       const res = await fetch(fresh('api/probe/post'), {
         method: 'POST',
         body: new Uint8Array(1024),
         cache: 'no-store',
-        signal: w.signal,
+        signal: timer.signal,
       });
-      if (res.status === 204) times.push(performance.now() - t0);
-      else last = `HTTP ${res.status}`;
+      if (res.status === 204) times.push(performance.now() - started);
+      else lastError = `HTTP ${res.status}`;
     } catch (e) {
-      last = errorText(e);
+      lastError = errorText(e);
     }
-    w.stop();
+    timer.stop();
   }
-  const n = times.length;
-  const text = `${n} of 3` + (n ? ` · ${ms(median(times))}` : '') + (last ? ` · ${last}` : '');
-  r.done(n === 3 ? 'ok' : n ? 'warn' : 'bad', text);
+  const passed = times.length;
+  const text = `${passed} of 3` + (passed ? ` · ${ms(median(times))}` : '') + (lastError ? ` · ${lastError}` : '');
+  // All three went through: ok; some: a warning; none: failed.
+  check.done(passed === 3 ? 'ok' : passed > 0 ? 'warn' : 'bad', text);
 }
 
 // Buttons stay disabled while a check runs.
@@ -252,10 +253,12 @@ async function copyReport(): Promise<void> {
   setTimeout(() => (button.textContent = 'Copy report'), 2500);
 }
 
-const B = BASE.replace(/\/$/, '');
+// "https:" -> HTTPS
 byId('origin').textContent = `Server: ${location.host} · ${location.protocol.slice(0, -1).toUpperCase()}`;
+// The same checks with curl, for a terminal.
+const serverUrl = BASE.replace(/\/$/, '');
 byId('cli').textContent = [
-  `B='${B}'`,
+  `B='${serverUrl}'`,
   `curl -sS "$B/api/probe/whoami"`,
   `curl -sS -o /dev/null -w '%{speed_download}' "$B/api/probe/10m.bin" | awk '{printf "10m: %.1f Mbit/s\\n", $1*8/1e6}'`,
   `curl -sS -o /dev/null -w 'POST: %{http_code}\\n' -d x "$B/api/probe/post"`,

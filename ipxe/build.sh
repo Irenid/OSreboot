@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
-# Builds ipxe.efi, the network boot loader the machine starts from its main
-# ESP: iPXE with HTTPS, osreboot.ipxe built in and the ISRG roots of Let's
-# Encrypt as its only trusted certificates.
-#
-#   bash ipxe/build.sh HOST [WORKDIR]    e.g. bash ipxe/build.sh osreboot.example.org
-#
-# HOST serves the server's files at https://HOST/files/. The source is cloned
-# into WORKDIR (default ipxe/build) and the result goes to ipxe/out/ipxe.efi.
-# It is the full ipxe.efi with its own network drivers: snponly.efi finds no
-# network card when it is started from a disk.
+# Builds ipxe/out/ipxe.efi: iPXE with HTTPS, osreboot.ipxe built in and the
+# Let's Encrypt (ISRG) roots as the only trusted certificates.
+#   bash ipxe/build.sh HOST [WORKDIR]    HOST serves the files, e.g. osreboot.example.org
 set -euo pipefail
 
 # iPXE has no releases that are updated often; this commit is known to work.
@@ -41,6 +34,8 @@ EOF
 mkdir -p "$here/out"
 sed "s/@HOST@/$host/" "$here/osreboot.ipxe" >"$here/out/osreboot.ipxe"
 certs=$here/isrg-root-x1.pem,$here/isrg-root-x2.pem
+# The full ipxe.efi has its own network drivers (snponly.efi found no card).
+# EMBED builds the script in, TRUST and CERT set the only trusted roots.
 make -C "$work/src" -j"$(nproc)" bin-x86_64-efi/ipxe.efi \
 	EMBED="$here/out/osreboot.ipxe" TRUST="$certs" CERT="$certs"
 cp "$work/src/bin-x86_64-efi/ipxe.efi" "$here/out/ipxe.efi"

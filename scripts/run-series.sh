@@ -1,27 +1,10 @@
 #!/usr/bin/env bash
-# A series of demo runs for measurements. Each run starts osreboot-wipe
-# --apply on the test system through its SSH tunnel and waits until the
-# restored system sends heartbeats again. The server writes every run to
-# data/outages.csv; dist/outage-stats.js sums them up.
-#
-#   scripts/run-series.sh RUNS
-#
-# Environment:
-#   OSREBOOT_URL       server address, e.g. https://osreboot.example.org
-#   OSREBOOT_SSH       the test system through the tunnel, e.g. root@osreboot.example.org
-#   OSREBOOT_SSH_PORT  2221 by default
-#   OSREBOOT_DEVICE    device id from config/devices.json, laptop by default
-#   PAUSE_S            seconds between runs, 60 by default
-#   TIMEOUT_S          seconds one run may take, 900 by default
-#   SAVE_DIR           where /api/state is saved after every run,
-#                      results/series-<UTC time> of this repository by default
-#
-# The server keeps only its last 10 transfers, about two runs, and
-# dist/downtime-figure.js needs those of the run it draws: hence a copy of
-# the state after every run.
-#
-# The series stops at the first run that does not end with the restored
-# system online: a failed recovery is never wiped again. Needs ssh, curl, jq.
+# Repeats the demo RUNS times: osreboot-wipe --apply through the SSH tunnel, then
+# waits for the restored system's heartbeat. Stops at the first failed run.
+#   OSREBOOT_URL=https://osreboot.example.org OSREBOOT_SSH=root@osreboot.example.org \
+#     scripts/run-series.sh RUNS
+# Optional: OSREBOOT_SSH_PORT=2221 OSREBOOT_DEVICE=laptop PAUSE_S=60 TIMEOUT_S=900,
+# SAVE_DIR=results/series-<UTC time> for copies of /api/state. Needs ssh, curl, jq.
 set -euo pipefail
 
 runs=${1:?usage: run-series.sh RUNS}
@@ -53,6 +36,11 @@ state() {
 # shellcheck disable=SC2016 # $id is a jq variable, not a shell one
 DEVICE='.devices[] | select(.id == $id)'
 
+# The device is online again, and its latest outage began at this wipe ($since, ± 10 s).
+back_online() {
+	[ "$(state "$DEVICE | .status == \"online\" and (.history[0].start // 0) >= \$since - 10000" "$since" || echo false)" = true ]
+}
+
 for i in $(seq 1 "$runs"); do
 	echo "== run $i of $runs"
 	[ "$(state "$DEVICE | .status")" = online ] || die "$device is not online, see the status page"
@@ -65,13 +53,13 @@ for i in $(seq 1 "$runs"); do
 	# The machine resets in the middle of the command, so ssh never ends cleanly.
 	test_system osreboot-wipe --apply || true
 
-	# Done when the device is online and its latest outage began at this wipe.
 	waited=0
-	until [ "$(state "$DEVICE | .status == \"online\" and (.history[0].start // 0) >= \$since - 10000" "$since" || echo false)" = true ]; do
+	until back_online; do
 		[ "$waited" -lt "$timeout" ] || die "run $i did not end within $timeout s, the series stops"
 		sleep 5
 		waited=$((waited + 5))
 	done
+	# The latest outage in seconds, with one decimal.
 	echo "   downtime $(state "$DEVICE | .history[0] | (.end - .start) / 100 | round / 10") s"
 	curl -fsS --max-time 10 "${OSREBOOT_URL%/}/api/state" >"$save/state-$i.json" ||
 		echo "   could not save the state, the transfers of run $i are lost" >&2

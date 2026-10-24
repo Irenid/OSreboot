@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
-# Writes the test system into its two partitions on this machine, from the
-# running main system, without a reboot:
-#   osreboot-test.esp.raw.zst          -> partition labelled osreboot-esp
-#   osreboot-test.root-x86-64.raw.zst  -> partition labelled osreboot-root
-# then grows the root file system to the partition, puts the device token in
-# encrypted with this machine's TPM (if DIR has osreboot.token; the plain copy
-# is deleted) and adds a firmware boot entry without changing the boot order.
-#
+# Writes the test system from DIR (two .raw.zst images, SHA256SUMS, optionally
+# osreboot.token) into osreboot-esp and osreboot-root, from the main system, and
+# adds a firmware boot entry without changing the boot order.
 #   sudo bash write-test-system.sh DIR           checks and plan, changes nothing
 #   sudo bash write-test-system.sh DIR --apply   writes; asks for confirmation
-#
-# DIR also holds SHA256SUMS of the uncompressed images.
 set -euo pipefail
 
 ESP_LABEL=osreboot-esp
@@ -45,14 +38,20 @@ partition() {
 	echo "$found"
 }
 
-# A partition this script may overwrite: not mounted, not swap, not used by
-# any other block device.
+# A partition this script may overwrite: not mounted, not swap, and no other
+# block device (such as an open LUKS volume) built on it.
 unused() {
 	local dev=$1 name
 	name=$(basename "$dev")
 	[ -z "$(findmnt -rno TARGET -S "$dev")" ] || die "$dev is mounted"
 	! grep -q "^$dev " /proc/swaps || die "$dev is used as swap"
 	[ -z "$(ls "/sys/class/block/$name/holders")" ] || die "$dev is used by $(ls "/sys/class/block/$name/holders")"
+}
+
+# The number of the boot entry titled $ENTRY_LABEL: 0006 for "Boot0006* OSreboot test".
+entry_number() {
+	efibootmgr | awk -v l="$ENTRY_LABEL" '{ line = $0; sub(/^Boot[0-9A-Fa-f]{4}\*? /, "", line) }
+		/^Boot[0-9A-Fa-f]{4}/ && index(line, l) == 1 { print substr($1, 5, 4) }'
 }
 
 echo "== Checks"
@@ -63,11 +62,12 @@ disk=/dev/$(lsblk -no PKNAME "$esp")
 [ "$(lsblk -no PARTTYPE "$esp")" = $ESP_TYPE ] || die "$esp is not an EFI system partition"
 unused "$esp"
 unused "$root"
+# The partition number from sysfs: 3 for /dev/nvme0n1p3.
 espnum=$(cat "/sys/class/block/$(basename "$esp")/partition")
 esp_uuid=$(lsblk -no PARTUUID "$esp")
 
 [ -f "$dir/SHA256SUMS" ] || die "$dir/SHA256SUMS is missing"
-declare -A size sum
+declare -A size checksum
 for image in $ESP_IMAGE $ROOT_IMAGE; do
 	[ -f "$dir/$image.zst" ] || die "$dir/$image.zst is missing"
 	expected=$(awk -v f="$image" '$2 == f || $2 == "*" f { print $1 }' "$dir/SHA256SUMS")
@@ -75,7 +75,7 @@ for image in $ESP_IMAGE $ROOT_IMAGE; do
 	actual=$(zstd -dcq "$dir/$image.zst" | sha256sum | cut -d' ' -f1)
 	[ "$actual" = "$expected" ] || die "$image.zst does not match SHA256SUMS"
 	size[$image]=$(zstd -dcq "$dir/$image.zst" | wc -c)
-	sum[$image]=$actual
+	checksum[$image]=$actual
 done
 [ "${size[$ESP_IMAGE]}" -le "$(blockdev --getsize64 "$esp")" ] || die "the ESP image does not fit into $esp"
 [ "${size[$ROOT_IMAGE]}" -le "$(blockdev --getsize64 "$root")" ] || die "the root image does not fit into $root"
@@ -89,9 +89,7 @@ if [ -f "$dir/osreboot.token" ]; then
 	done
 fi
 
-entries=$(efibootmgr)
-existing=$(awk -v l="$ENTRY_LABEL" '{ line = $0; sub(/^Boot[0-9A-Fa-f]{4}\*? /, "", line) }
-	/^Boot[0-9A-Fa-f]{4}/ && index(line, l) == 1 { print substr($1, 5, 4) }' <<<"$entries")
+existing=$(entry_number)
 if [ -n "$existing" ]; then
 	efibootmgr -v | grep "^Boot$existing" | grep -qi "$esp_uuid" ||
 		die "boot entry $existing \"$ENTRY_LABEL\" points somewhere else; remove it first"
@@ -129,7 +127,7 @@ write() {
 	echo "== Writing $image to $dev"
 	zstd -dcq "$dir/$image.zst" | dd of="$dev" bs=4M iflag=fullblock conv=fsync status=progress
 	blockdev --flushbufs "$dev"
-	[ "$(head -c "${size[$image]}" "$dev" | sha256sum | cut -d' ' -f1)" = "${sum[$image]}" ] ||
+	[ "$(head -c "${size[$image]}" "$dev" | sha256sum | cut -d' ' -f1)" = "${checksum[$image]}" ] ||
 		{ echo "read-back of $dev does not match $image"; false; }
 	echo "read back and verified"
 }
@@ -163,8 +161,7 @@ if [ -z "$existing" ]; then
 	order=$(efibootmgr | sed -n 's/^BootOrder: //p')
 	efibootmgr --create-only --disk "$disk" --part "$espnum" --label "$ENTRY_LABEL" --loader "$LOADER" >/dev/null
 	[ "$(efibootmgr | sed -n 's/^BootOrder: //p')" = "$order" ] || { echo "the boot order changed"; false; }
-	existing=$(efibootmgr | awk -v l="$ENTRY_LABEL" '{ line = $0; sub(/^Boot[0-9A-Fa-f]{4}\*? /, "", line) }
-		/^Boot[0-9A-Fa-f]{4}/ && index(line, l) == 1 { print substr($1, 5, 4) }')
+	existing=$(entry_number)
 fi
 trap - ERR
 

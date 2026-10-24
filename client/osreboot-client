@@ -1,17 +1,8 @@
 #!/bin/sh
-# Reports to the OSreboot server: heartbeats from the running system and
-# stages from the wipe script and the recovery environment.
-#
-#   osreboot-client heartbeat                     a heartbeat every second
-#   osreboot-client stage NAME [PERCENT|-] [TEXT]  report a stage, e.g. "download 42"
-#
-# Environment:
-#   OSREBOOT_URL         server address, e.g. https://example.org/osreboot
-#   OSREBOOT_TOKEN_FILE  device token; by default the systemd credential
-#                        $CREDENTIALS_DIRECTORY/osreboot-token
-#
-# Any heartbeat ends an outage on the server, so stop the heartbeat service
-# before a script on the running system reports a stage.
+# Sends heartbeats and stage reports to the OSreboot server at $OSREBOOT_URL.
+#   osreboot-client heartbeat                      one a second, until stopped
+#   osreboot-client stage NAME [PERCENT|-] [TEXT]  e.g. stage download 42
+# The token comes from $OSREBOOT_TOKEN_FILE or the systemd credential osreboot-token.
 set -eu
 
 usage() {
@@ -19,7 +10,8 @@ usage() {
 	exit 2
 }
 
-# The token goes to curl through stdin, so it never shows up in the process list.
+# POSTs the JSON $2 to /api/$1. The token goes to curl through stdin, so it
+# never shows up in the process list.
 post() {
 	printf 'header = "Authorization: Bearer %s"\n' "$token" |
 		curl --silent --show-error --fail --max-time 5 --config - \
@@ -27,10 +19,14 @@ post() {
 			--data "$2" "${OSREBOOT_URL%/}/api/$1" >/dev/null
 }
 
+# Prints $1 as a JSON string: control characters are dropped, backslashes
+# and double quotes escaped.
 json_string() {
 	printf '"%s"' "$(printf '%s' "$1" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')"
 }
 
+# The kernel makes up a new boot_id at every boot, so a new value tells the
+# server that the machine has restarted.
 heartbeat() {
 	boot=$(cat /proc/sys/kernel/random/boot_id)
 	while :; do
@@ -42,6 +38,7 @@ heartbeat() {
 stage() {
 	[ $# -ge 1 ] || usage
 	percent=${2:--}
+	# "-" means no percentage; otherwise a number such as 42 or 42.5.
 	case $percent in
 	-) percent=null ;;
 	*[!0-9.]* | .* | *.*.* | *.) usage ;;
@@ -68,6 +65,7 @@ heartbeat | stage) ;;
 *) usage ;;
 esac
 
+# ${NAME:?text} stops the script with that text if NAME is unset or empty.
 : "${OSREBOOT_URL:?OSREBOOT_URL is not set}"
 if [ -z "${OSREBOOT_TOKEN_FILE:-}" ]; then
 	: "${CREDENTIALS_DIRECTORY:?set OSREBOOT_TOKEN_FILE or pass the token as the osreboot-token credential}"
@@ -75,4 +73,5 @@ if [ -z "${OSREBOOT_TOKEN_FILE:-}" ]; then
 fi
 token=$(cat "$OSREBOOT_TOKEN_FILE")
 
+# Runs the function heartbeat or stage with the remaining arguments.
 "$command" "$@"

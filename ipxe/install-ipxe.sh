@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
-# Installs the network boot loader on the main ESP of this machine, from the
-# running main system: ipxe.efi as /EFI/osreboot/ipxe.efi and the systemd-boot
-# entry osreboot-ipxe.conf that starts it. The entry is only ever booted once,
-# as the one-shot entry of systemd-boot: osreboot-wipe sets it on the test
-# system, and in the main system
-#   sudo systemctl reboot --boot-loader-entry=osreboot-ipxe.conf
-# starts the recovery. The default entry of the boot menu stays as it is.
-#
-# Not a firmware boot entry: the laptop's firmware overwrote firmware entries
-# outside BootOrder when it found the rewritten test ESP.
-#
+# Installs ipxe.efi as /EFI/osreboot/ipxe.efi on the main ESP with the
+# systemd-boot entry osreboot-ipxe.conf, which only ever boots once (one-shot).
 #   sudo bash install-ipxe.sh IPXE_EFI           checks and plan, changes nothing
 #   sudo bash install-ipxe.sh IPXE_EFI --apply   installs
 set -euo pipefail
@@ -33,8 +24,8 @@ for c in bootctl efibootmgr findmnt lsblk sha256sum; do
 	command -v "$c" >/dev/null || die "$c is not installed"
 done
 
-# The ids of the boot entries, and of the one systemd-boot boots when nothing
-# else is asked for: bootctl marks its title with "(default)".
+# The ids of the boot entries, and the id of the default one: `bootctl list`
+# marks its title with "(default)" and prints its id a line later.
 entries() {
 	bootctl list --no-pager | awk '$1 == "id:" { print $2 }'
 }
@@ -48,8 +39,8 @@ echo "== Checks"
 esp=$(bootctl --print-esp-path)
 esp_dev=$(findmnt -no SOURCE "$esp")
 esp_uuid=$(lsblk -no PARTUUID "$esp_dev")
-# The firmware boots the first entry of BootOrder; only systemd-boot on this
-# ESP sees the one-shot entry.
+# The firmware boots the first entry of BootOrder ("BootOrder: 0001,0000" -> 0001);
+# only systemd-boot on this ESP sees the one-shot entry.
 first=$(efibootmgr | sed -n 's/^BootOrder: \([0-9A-Fa-f]\{4\}\).*/\1/p')
 [ -n "$first" ] || die "the firmware has no BootOrder"
 efibootmgr -v | grep "^Boot$first" | grep -qi "$esp_uuid" ||

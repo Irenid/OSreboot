@@ -1,9 +1,5 @@
-# Reverse SSH tunnel: the restored system has no public address, so it logs in
-# to the server as a user that may only open a Unix socket there, and that
-# socket leads back to sshd here. The server and the socket are site settings,
-# the server's host key comes from /etc/ssh/ssh_known_hosts and the private key
-# is the credential osreboot-tunnel-key, encrypted with the machine's TPM; see
-# README.md.
+# Reverse SSH tunnel: the system has no public address, so it connects to the
+# server itself, and a Unix socket there leads back to sshd here. See README.md.
 [Unit]
 Description=OSreboot reverse SSH tunnel
 Wants=network-online.target
@@ -16,9 +12,7 @@ StartLimitIntervalSec=0
 Environment=OSREBOOT_TUNNEL=osreboot-tunnel@example.org OSREBOOT_TUNNEL_SOCKET=/var/lib/osreboot-tunnel/sock/ssh.sock
 # For a test in a virtual machine without the TPM: pass the key in.
 ImportCredential=osreboot-tunnel-key
-# The server replaces the socket of an older connection, such as the one the
-# system had before the wipe. A dead connection ends here within 45 s, and the
-# restart opens a new one.
+# A dead connection ends within 45 s (3 × 15 s), and Restart= opens a new one.
 ExecStart=/usr/bin/ssh -NT -i %d/osreboot-tunnel-key \
 	-o IdentitiesOnly=yes -o BatchMode=yes \
 	-o StrictHostKeyChecking=yes -o UserKnownHostsFile=none \

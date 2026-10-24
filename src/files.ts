@@ -12,11 +12,12 @@ export interface Transfer {
   sent: number;
   start: number;
   end: number | null;
-  ok: boolean | null;
+  ok: boolean | null; // null while it runs, false if the client went away
 }
 
 const RECENT = 10;
 
+// The downloads the status page shows: the running ones and the last 10 finished.
 export class Transfers {
   readonly active = new Map<number, Transfer>();
   #recent: Transfer[] = [];
@@ -52,8 +53,8 @@ export interface ByteRange {
   end: number;
 }
 
-// One byte range as in RFC 9110. Malformed and multi-range headers are ignored,
-// so the whole file is sent; a range that starts past the end is unsatisfiable.
+// The Range header asks for a part of a file: "bytes=0-99" (first 100 bytes),
+// "bytes=100-" (from byte 100 on), "bytes=-100" (last 100). Other forms get the whole file.
 export function parseRange(header: string | undefined, size: number): ByteRange | 'unsatisfiable' | null {
   if (header === undefined) return null;
   const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
@@ -84,8 +85,14 @@ const TYPES: Record<string, string> = {
 };
 
 // Path segments must not start with a dot: no "..", no hidden files.
+// "boot.ipxe" and "images/a.raw.zst" pass; "../etc/passwd", ".git/config" and "a//b" do not.
 const SAFE_PATH = /^(?:[\w-][\w.-]*\/)*[\w-][\w.-]*$/;
 
+function notFound(res: ServerResponse): void {
+  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('not found\n');
+}
+
+// Sends the file `name` from `dir`, or the part of it the Range header asks for.
 export async function sendFile(
   req: IncomingMessage,
   res: ServerResponse,
@@ -93,18 +100,17 @@ export async function sendFile(
   name: string,
   transfers: Transfers,
 ): Promise<void> {
-  const file = name.length <= 200 && SAFE_PATH.test(name) ? path.join(dir, name) : null;
-  const info = file === null ? null : await stat(file).catch(() => null);
-  if (file === null || !info?.isFile()) {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('not found\n');
-    return;
-  }
+  if (name.length > 200 || !SAFE_PATH.test(name)) return notFound(res);
+  const file = path.join(dir, name);
+  const info = await stat(file).catch(() => null); // null if there is no such file
+  if (!info?.isFile()) return notFound(res);
 
   const range = parseRange(req.headers.range, info.size);
   if (range === 'unsatisfiable') {
     res.writeHead(416, { 'Content-Range': `bytes */${info.size}` }).end();
     return;
   }
+  // Without a range: the whole file.
   const start = range?.start ?? 0;
   const end = range?.end ?? info.size - 1;
   const length = end - start + 1;
@@ -116,6 +122,7 @@ export async function sendFile(
     'Cache-Control': 'no-cache',
   };
   if (range) headers['Content-Range'] = `bytes ${start}-${end}/${info.size}`;
+  // 206 Partial Content: only the part the range asked for.
   res.writeHead(range ? 206 : 200, headers);
   if (req.method === 'HEAD' || length === 0) {
     res.end();
@@ -124,9 +131,11 @@ export async function sendFile(
 
   const transfer = transfers.begin(name, start, length, Date.now());
   const stream = createReadStream(file, { start, end });
+  // Counts the bytes as they go out, for the progress bar on the status page.
   stream.on('data', (chunk) => {
     transfer.sent += chunk.length;
   });
+  // pipeline() copies the file into the response and throws if the client goes away.
   try {
     await pipeline(stream, res);
     transfers.finish(transfer, true, Date.now());

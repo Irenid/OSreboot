@@ -33,12 +33,14 @@ const PAGES: Record<string, { file: string; type: string }> = {
 const config = await loadConfig();
 const webDir = path.join(config.root, 'dist', 'web');
 const store = new Store(config.dataDir);
+// The open status pages: each is a response kept open for server-sent events.
 const viewers = new Set<ServerResponse>();
-let dirty = true;
+// Set on every change; the next tick sends the state to the viewers.
+let stateChanged = true;
 let lastBroadcast = 0;
 
 const transfers = new Transfers(() => {
-  dirty = true;
+  stateChanged = true;
 });
 const monitor = new Monitor(config.devices, config.heartbeatTimeoutMs, {
   onStatus(device, from) {
@@ -53,10 +55,12 @@ const monitor = new Monitor(config.devices, config.heartbeatTimeoutMs, {
 monitor.restore(await store.load());
 
 function changed(): void {
-  dirty = true;
+  stateChanged = true;
   store.save(monitor.devices);
 }
 
+// What /api/state and the status page get: the devices with their last 10
+// outages, and the downloads.
 function snapshot(now: number) {
   return {
     now,
@@ -74,16 +78,19 @@ function snapshot(now: number) {
 }
 
 function broadcast(now: number): void {
-  dirty = false;
+  stateChanged = false;
   lastBroadcast = now;
   const frame = `event: state\ndata: ${JSON.stringify(snapshot(now))}\n\n`;
   for (const viewer of viewers) viewer.write(frame);
 }
 
+// Four times a second: find devices that went silent, and send the state to the
+// viewers when it changed, or every second while a file downloads.
 setInterval(() => {
   const now = Date.now();
   if (monitor.tick(now)) changed();
-  if (dirty || (transfers.active.size > 0 && now - lastBroadcast >= 1000)) broadcast(now);
+  const downloading = transfers.active.size > 0;
+  if (stateChanged || (downloading && now - lastBroadcast >= 1000)) broadcast(now);
 }, 250);
 
 // Proxies drop connections that stay silent for too long.
@@ -97,6 +104,7 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 }
 
 // The token identifies the device; the server keeps only SHA-256 digests of tokens.
+// timingSafeEqual takes the same time however many bytes match.
 function authenticate(req: IncomingMessage): string {
   const token = /^Bearer ([\w-]{16,128})$/.exec(req.headers.authorization ?? '')?.[1];
   if (token !== undefined) {
@@ -138,7 +146,7 @@ function parseStage(body: Record<string, unknown>): StageReport {
     if (typeof percent !== 'number' || !(percent >= 0 && percent <= 100)) {
       throw new HttpError(400, 'percent must be a number from 0 to 100');
     }
-    pct = Math.round(percent * 10) / 10;
+    pct = Math.round(percent * 10) / 10; // one decimal
   }
   let text: string | null = null;
   if (message !== undefined && message !== null) {
@@ -163,6 +171,8 @@ async function progress(req: IncomingMessage, res: ServerResponse): Promise<void
   res.writeHead(204).end();
 }
 
+// Server-sent events: the response stays open, and each "event: state" frame
+// carries the whole state. "retry: 2000" makes the browser reconnect after 2 s.
 function events(res: ServerResponse): void {
   if (viewers.size >= MAX_VIEWERS) throw new HttpError(503, 'too many viewers');
   res.writeHead(200, {
@@ -206,7 +216,11 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (pathname === '/api/state') return json(res, 200, snapshot(Date.now()));
   if (pathname === '/api/events') return events(res);
   if (pathname === '/api/probe/whoami') return probe.whoami(req, res);
-  if (pathname.startsWith('/api/probe/') && (await probe.blob(res, pathname.slice('/api/probe/'.length)))) return;
+  if (pathname.startsWith('/api/probe/')) {
+    // Test files for the speed check; any other name ends in 404 below.
+    const sent = await probe.testFile(res, pathname.slice('/api/probe/'.length));
+    if (sent) return;
+  }
   if (pathname.startsWith('/files/')) {
     return sendFile(req, res, config.filesDir, decodePath(pathname.slice('/files/'.length)), transfers);
   }
@@ -225,12 +239,14 @@ const server = createServer((req, res) => {
     else json(res, status, { error: err instanceof HttpError ? err.message : 'internal error' });
   });
 });
+// Clients that send their request too slowly are cut off.
 server.headersTimeout = 10_000;
 server.requestTimeout = 30_000;
 server.listen(config.port, config.host, () => {
   console.log(`listening on http://${config.host}:${config.port}, devices: ${config.devices.map((d) => d.id).join(', ')}`);
 });
 
+// On Ctrl-C or `systemctl stop`, save the state before exiting.
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     store.flush(monitor.devices);

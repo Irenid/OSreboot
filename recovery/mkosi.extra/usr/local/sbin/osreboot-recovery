@@ -1,38 +1,37 @@
 #!/usr/bin/env bash
-# Restores the test system from the OSreboot server. It runs in the recovery
-# environment, from memory, and writes only the two partitions labelled
-# osreboot-esp and osreboot-root:
-#   1. finds and checks the partitions;
-#   2. downloads the compressed images and SHA256SUMS into memory and checks them;
-#   3. writes the images, reads them back, grows the root file system;
-#   4. sets BootNext to the test system, saves its log there, reboots.
-# Every step is reported to the server as a stage, but the restore does not
-# depend on the reports. On an error it stops writing, shows the error on the
-# console and leaves the root login on tty1 and SSH for a look around; after
-# FALLBACK_MIN minutes the machine restarts into its own system, so that a
-# machine nobody can walk up to does not stay here.
+# Restores the test system from the OSreboot server, running from memory in the
+# recovery environment: downloads and checks the images, writes them into
+# osreboot-esp and osreboot-root, sets BootNext and reboots. On an error it stops
+# writing and restarts the machine into its own system after FALLBACK_MIN minutes.
 set -Eeuo pipefail
 
 ESP_LABEL=osreboot-esp
 ROOT_LABEL=osreboot-root
 ESP_IMAGE=osreboot-test.esp.raw
 ROOT_IMAGE=osreboot-test.root-x86-64.raw
+# GPT partition types: an EFI system partition; for the root partition,
+# Linux data or x86-64 root.
 ESP_TYPE=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
-# Linux data and x86-64 root: the types the root partition may have.
 ROOT_TYPES="0fc63daf-8483-4772-8e79-3d69d8477de4 4f68bce3-e8cd-4db1-96e7-fbcaf984b709"
+MIB=$((1024 * 1024))
+GIB=$((1024 * MIB))
 # Guards against writing a wrong partition: the test partitions are small,
 # the main system's partition is not.
-ESP_MAX=$((4 << 30))
-ROOT_MAX=$((128 << 30))
+ESP_MAX=$((4 * GIB))
+ROOT_MAX=$((128 * GIB))
 ENTRY_LABEL="OSreboot test"
 FALLBACK_MIN=20
+# systemd-boot on the test ESP, in the firmware's path notation.
 LOADER='\EFI\systemd\systemd-bootx64.efi'
+# In memory, like everything here: /run is a tmpfs.
 WORK=/run/osreboot
 LOG_DIR=/var/log/osreboot
 
+# Stops here if OSREBOOT_URL is unset or empty.
 : "${OSREBOOT_URL:?OSREBOOT_URL is not set}"
 FILES=${OSREBOOT_URL%/}/files
 started=$SECONDS
+# Set to yes once the check below confirms this runs from memory.
 in_memory=no
 
 say() {
@@ -45,6 +44,7 @@ report() {
 	osreboot-client stage "$@" >/dev/null 2>&1 || echo "   (the server did not take the $1 report)"
 }
 
+# Stops the recovery: reports the error and writes nothing more.
 fail() {
 	trap - ERR
 	echo
@@ -62,7 +62,8 @@ fail() {
 	fi
 	exit 1
 }
-# Errors inside $(...) and background jobs surface in the main shell.
+# Any failed command calls fail(). In a subshell ($(...), a background job) the
+# trap does nothing: the failure comes back to the main shell and fails there.
 trap '[ "$BASH_SUBSHELL" -gt 0 ] || fail "command failed at line $LINENO: $BASH_COMMAND"' ERR
 
 # A transfer slower than 1 KiB/s for a minute counts as failed and is retried:
@@ -73,18 +74,24 @@ fetch() {
 		--retry 5 --retry-all-errors --retry-delay 2 "$@"
 }
 
-# Sets the variable $1 to the only partition labelled $2.
+# Sets $partition to the only partition labelled $1. Not esp=$(...): fail()
+# has to run in the main shell. The disk may appear a few seconds after boot.
 find_partition() {
 	local found
 	for _ in $(seq 30); do
 		udevadm settle
-		found=$(lsblk -rno PATH,PARTLABEL | awk -v l="$2" '$2 == l { print $1 }')
+		found=$(lsblk -rno PATH,PARTLABEL | awk -v l="$1" '$2 == l { print $1 }')
 		[ -z "$found" ] || break
 		sleep 1
 	done
-	[ -n "$found" ] || fail "no partition is labelled $2"
-	[ "$(wc -l <<<"$found")" = 1 ] || fail "more than one partition is labelled $2: ${found//$'\n'/ }"
-	printf -v "$1" '%s' "$found"
+	[ -n "$found" ] || fail "no partition is labelled $1"
+	[ "$(wc -l <<<"$found")" = 1 ] || fail "more than one partition is labelled $1: ${found//$'\n'/ }"
+	partition=$found
+}
+
+# True while the process $1 runs: kill -0 sends no signal, it only checks.
+running() {
+	kill -0 "$1" 2>/dev/null
 }
 
 # Checks that $1 may be overwritten with $2 bytes: its type, the file system
@@ -96,7 +103,7 @@ check_partition() {
 	found=$(blkid -o value -s TYPE "$dev" || true)
 	[ -z "$found" ] || [ "$found" = "$fs" ] || fail "$dev holds $found, not $fs: refusing to overwrite it"
 	size=$(blockdev --getsize64 "$dev")
-	[ "$size" -le "$max" ] || fail "$dev is $((size >> 30)) GiB, larger than a test partition"
+	[ "$size" -le "$max" ] || fail "$dev is $((size / GIB)) GiB, larger than a test partition"
 	[ "$need" -le "$size" ] || fail "the image ($need bytes) does not fit into $dev ($size bytes)"
 	[ -z "$(findmnt -rno TARGET -S "$dev")" ] || fail "$dev is mounted"
 }
@@ -115,6 +122,7 @@ else
 fi
 
 say "OSreboot recovery, kernel $(uname -r), server $OSREBOOT_URL"
+# The UKI unpacks the whole system into memory, so / is a file system in RAM.
 case $(findmnt -no FSTYPE /) in
 rootfs | tmpfs | ramfs) in_memory=yes ;;
 *) fail "/ is not in memory: this is not the recovery environment" ;;
@@ -123,50 +131,55 @@ report recovery - "running from memory, kernel $(uname -r)"
 
 say "Looking for the partitions $ESP_LABEL and $ROOT_LABEL"
 report partition - "looking for $ESP_LABEL and $ROOT_LABEL"
-esp='' root=''
-find_partition esp $ESP_LABEL
-find_partition root $ROOT_LABEL
+find_partition $ESP_LABEL
+esp=$partition
+find_partition $ROOT_LABEL
+root=$partition
 disk=/dev/$(lsblk -no PKNAME "$esp")
 [ "$disk" = "/dev/$(lsblk -no PKNAME "$root")" ] || fail "$esp and $root are on different disks"
 echo "   $esp ($ESP_LABEL) and $root ($ROOT_LABEL) on $disk"
 
 say "Downloading the images from $FILES"
 fetch -o "$WORK/SHA256SUMS" "$FILES/SHA256SUMS"
-declare -A zsize
+# The sizes from HEAD requests (Content-Length): for the percentage and to
+# check that each download is complete.
+declare -A compressed_size
 total=0
 for image in $ESP_IMAGE $ROOT_IMAGE; do
-	zsize[$image]=$(fetch --head "$FILES/$image.zst" | tr -d '\r' |
+	compressed_size[$image]=$(fetch --head "$FILES/$image.zst" | tr -d '\r' |
 		awk 'tolower($1) == "content-length:" { n = $2 } END { print n + 0 }')
-	[ "${zsize[$image]}" -gt 0 ] || fail "the server reports no size for $image.zst"
-	total=$((total + zsize[$image]))
+	[ "${compressed_size[$image]}" -gt 0 ] || fail "the server reports no size for $image.zst"
+	total=$((total + compressed_size[$image]))
 done
 done_bytes=0
 for image in $ESP_IMAGE $ROOT_IMAGE; do
+	# curl runs in the background; every 2 s the loop reports how much has arrived.
 	fetch -o "$WORK/$image.zst" "$FILES/$image.zst" &
 	pid=$!
-	while kill -0 "$pid" 2>/dev/null; do
+	while running "$pid"; do
 		got=$(stat -c %s "$WORK/$image.zst" 2>/dev/null || echo 0)
 		percent=$(((done_bytes + got) * 100 / total))
-		printf '   %s: %3d%% of %d MiB\n' "$image.zst" "$percent" $((total >> 20))
+		printf '   %s: %3d%% of %d MiB\n' "$image.zst" "$percent" $((total / MIB))
 		report download "$percent" "$image.zst"
 		sleep 2
 	done
 	wait "$pid" || fail "could not download $image.zst"
-	[ "$(stat -c %s "$WORK/$image.zst")" = "${zsize[$image]}" ] || fail "$image.zst is incomplete"
-	done_bytes=$((done_bytes + zsize[$image]))
+	[ "$(stat -c %s "$WORK/$image.zst")" = "${compressed_size[$image]}" ] || fail "$image.zst is incomplete"
+	done_bytes=$((done_bytes + compressed_size[$image]))
 done
-report download 100 "$((total >> 20)) MiB in $((SECONDS - started)) s"
+report download 100 "$((total / MIB)) MiB in $((SECONDS - started)) s"
 
 say "Checking the images against SHA256SUMS"
 report verify - "SHA-256 of both images"
-declare -A size sum
+declare -A size checksum
 for image in $ESP_IMAGE $ROOT_IMAGE; do
-	sum[$image]=$(awk -v f="$image" '$2 == f || $2 == "*" f { print $1 }' "$WORK/SHA256SUMS")
-	[ -n "${sum[$image]}" ] || fail "SHA256SUMS has no line for $image"
-	[ "$(zstd -dcq "$WORK/$image.zst" | sha256sum | cut -d' ' -f1)" = "${sum[$image]}" ] ||
+	# A line of SHA256SUMS is "SUM  NAME", or "SUM *NAME" in binary mode.
+	checksum[$image]=$(awk -v f="$image" '$2 == f || $2 == "*" f { print $1 }' "$WORK/SHA256SUMS")
+	[ -n "${checksum[$image]}" ] || fail "SHA256SUMS has no line for $image"
+	[ "$(zstd -dcq "$WORK/$image.zst" | sha256sum | cut -d' ' -f1)" = "${checksum[$image]}" ] ||
 		fail "$image.zst does not match SHA256SUMS"
 	size[$image]=$(zstd -dcq "$WORK/$image.zst" | wc -c)
-	echo "   $image: $((size[$image] >> 20)) MiB, checksum matches"
+	echo "   $image: $((size[$image] / MIB)) MiB, checksum matches"
 done
 
 say "Checking that the partitions may be overwritten"
@@ -174,12 +187,13 @@ check_partition "$esp" "${size[$ESP_IMAGE]}" vfat $ESP_MAX "$ESP_TYPE"
 check_partition "$root" "${size[$ROOT_IMAGE]}" ext4 $ROOT_MAX "$ROOT_TYPES"
 echo "   both checks passed"
 
-# Writes image $1 into partition $2 and reads it back.
+# Writes image $1 into partition $2 and reads it back. dd runs in the
+# background; "wchar" in /proc/PID/io is how many bytes it has written so far.
 write_image() {
 	local image=$1 dev=$2 pid written
 	zstd -dcq "$WORK/$image.zst" | dd of="$dev" bs=4M iflag=fullblock oflag=direct status=none &
 	pid=$!
-	while kill -0 "$pid" 2>/dev/null; do
+	while running "$pid"; do
 		written=$(awk '$1 == "wchar:" { print $2 }' "/proc/$pid/io" 2>/dev/null || echo 0)
 		percent=$((${written:-0} * 100 / size[$image]))
 		printf '   %s -> %s: %3d%%\n' "$image" "$dev" "$percent"
@@ -188,7 +202,7 @@ write_image() {
 	done
 	wait "$pid" || fail "writing $image to $dev failed"
 	blockdev --flushbufs "$dev"
-	[ "$(head -c "${size[$image]}" "$dev" | sha256sum | cut -d' ' -f1)" = "${sum[$image]}" ] ||
+	[ "$(head -c "${size[$image]}" "$dev" | sha256sum | cut -d' ' -f1)" = "${checksum[$image]}" ] ||
 		fail "the read-back of $dev does not match $image"
 	echo "   $dev read back and verified"
 	report write 100 "$image -> $dev, read back"
@@ -200,6 +214,7 @@ write_image $ROOT_IMAGE "$root"
 rm -f "$WORK"/*.zst
 
 say "Growing the root file system"
+# e2fsck exits with 1 when it has fixed something: 0 and 1 are fine.
 rc=0
 e2fsck -f -y "$root" || rc=$?
 [ "$rc" -le 1 ] || fail "e2fsck found errors it could not fix (code $rc)"
@@ -208,11 +223,15 @@ resize2fs "$root"
 say "Setting the next boot to the test system"
 report bootloader - "BootNext to the test system"
 esp_uuid=$(lsblk -dno PARTUUID "$esp")
+# Prints the number of the firmware boot entry that starts from the test ESP,
+# such as 0006: the line of `efibootmgr -v` with its PARTUUID.
 entry_for_esp() {
 	efibootmgr -v | awk -v u="$esp_uuid" '/^Boot[0-9A-Fa-f]{4}/ && index(tolower($0), tolower(u)) { print substr($1, 5, 4); exit }'
 }
 entry=$(entry_for_esp)
 if [ -z "$entry" ]; then
+	# --create-only leaves BootOrder as it is. The partition number comes from
+	# sysfs: /sys/class/block/nvme0n1p3/partition holds 3.
 	efibootmgr --create-only --disk "$disk" --part "$(cat "/sys/class/block/${esp#/dev/}/partition")" \
 		--label "$ENTRY_LABEL" --loader "$LOADER" >/dev/null
 	entry=$(entry_for_esp)

@@ -1,13 +1,13 @@
 #!ipxe
-# Built into ipxe.efi, see build.sh. It gets an address by DHCP, finds the
-# server and chains boot.ipxe from its files over HTTPS, which starts the
-# recovery environment. Whatever fails, it restarts the machine: the one-shot
-# entry that started it is used up by then, so the machine comes back in its
-# own system. It never returns to the boot manager, which would then wait in
-# its menu for someone at the keyboard.
+# Built into ipxe.efi by build.sh: DHCP, DNS, then boot.ipxe from the server over
+# HTTPS. On any failure it restarts the machine: the one-shot entry is used up, so
+# it boots its own system, while the boot menu would wait for a key press.
+# "cmd && goto x ||": on success go to :x, on failure go on to the next line.
 echo OSreboot network boot (iPXE ${version})
+# build.sh puts the server name here.
 set host @HOST@
 
+# Up to 5 tries, 3 s apart.
 set tries:int32 0
 :dhcp
 dhcp && goto configured ||

@@ -45,6 +45,7 @@ export async function loadConfig(): Promise<Config> {
   };
 }
 
+// devices.json: {"devices": [{"id": "laptop", "name": "Laptop", "tokenSha256": "<64 hex digits>"}]}
 export function parseDevices(raw: unknown, source: string): Device[] {
   const list = (raw as { devices?: unknown } | null)?.devices;
   if (!Array.isArray(list) || list.length === 0) throw new Error(`${source}: "devices" must be a non-empty array`);

@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
-# Makes the two SSH keys of the test system on the machine it runs on and
-# encrypts them with this machine's TPM, so that the image can carry them and
-# still be served publicly:
-#   osreboot-tunnel-key    the key osreboot-tunnel.service logs in to the server with
-#   osreboot-ssh-host-key  the host key, the same after every restore
-# Writes DIR/NAME.cred, which goes to etc/credstore.encrypted/NAME in
-# mkosi.local.extra, and DIR/NAME.pub. The plain private keys exist only in a
-# root-only directory in memory and are deleted at the end.
-#
-#   sudo bash make-ssh-credentials.sh DIR
+# Makes the test system's SSH keys (tunnel key and host key) and encrypts them
+# with this machine's TPM, so that the public image can carry them.
+#   sudo bash make-ssh-credentials.sh DIR    writes DIR/NAME.cred and DIR/NAME.pub
 set -euo pipefail
 
 NAMES="osreboot-tunnel-key osreboot-ssh-host-key"
@@ -32,14 +25,14 @@ for name in $NAMES; do
 	[ ! -e "$dir/$name.cred" ] && [ ! -e "$dir/$name.pub" ] || die "$dir/$name.cred or .pub exists already"
 done
 
+# The plain private keys exist only here, in memory, and are deleted on exit.
 work=$(mktemp -d -p /run)
 trap 'rm -rf "$work"' EXIT
 
 host=$(uname -n)
 for name in $NAMES; do
 	ssh-keygen -q -t ed25519 -N '' -C "$name@$host" -f "$work/$name"
-	# TPM only and no PCRs, like the device token: the firmware settings and
-	# the system that boots do not matter, only this TPM can decrypt it.
+	# Bound to this TPM only, not to firmware settings (no PCRs), like the token.
 	systemd-creds encrypt --with-key=tpm2 --name="$name" "$work/$name" "$work/$name.cred"
 	systemd-creds decrypt --name="$name" "$work/$name.cred" - | cmp -s - "$work/$name" ||
 		die "$name does not decrypt back"

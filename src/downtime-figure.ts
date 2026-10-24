@@ -2,17 +2,10 @@ import { readFile } from 'node:fs/promises';
 
 import { complete, parseRuns, type Run } from './outage-stats.js';
 
-// Draws where the downtime of one wiped run went: an SVG timeline with a bar
-// per step, coloured by the kind of work. The steps come from the stage
-// reports in outages.csv, the boundaries inside the network boot from the
-// server's list of transfers. Only /api/state has that list, the server's
-// state.json keeps just the devices: STATE_JSON is /api/state saved after the
-// run, as scripts/run-series.sh does. The text is in Russian, like README.md.
-//
+// Draws where the downtime of one wiped run went, as an SVG timeline in Russian.
+// STATE_JSON is /api/state saved after the run (run-series.sh does it); START is
+// the run's start in UTC, e.g. 2026-10-23T15:53, by default the last run.
 //   node dist/downtime-figure.js OUTAGES_CSV STATE_JSON [START] [--dark] >figure.svg
-//
-// START picks the run by the beginning of its start time in UTC, such as
-// 2026-10-23T15:53; by default it is the last complete run of osreboot-wipe.
 
 export interface Transfer {
   file: string;
@@ -194,6 +187,7 @@ export function figure(run: Run, list: readonly Step[], dark = false): string {
   ].join('\n');
 }
 
+// Only when run as a command, not when the tests import this file.
 if (import.meta.main) {
   const args = process.argv.slice(2);
   const dark = args.includes('--dark');

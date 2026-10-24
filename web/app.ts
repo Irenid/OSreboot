@@ -62,8 +62,12 @@ const STAGES: Record<string, string> = {
   reboot: 'Rebooting into the restored system',
 };
 
+const MIB = 1024 * 1024;
+
 let clockOffset = 0; // server clock minus the clock of this device
-const beats = new Map<string, number>();
+// The pulse flashes only on a heartbeat it has not shown yet.
+const lastShownBeat = new Map<string, number>();
+// Devices whose "Previous outages" list is open; it stays open after a re-render.
 const openHistory = new Set<string>();
 
 function byId(id: string): HTMLElement {
@@ -95,12 +99,12 @@ function clock(ts: number, withDate = false): string {
 
 function size(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
-  return bytes < 1 << 20 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1 << 20)).toFixed(1)} MB`;
+  return bytes < MIB ? `${Math.round(bytes / 1024)} KB` : `${(bytes / MIB).toFixed(1)} MB`;
 }
 
 // Speed means little for a transfer that took a fraction of a second.
 function speed(bytes: number, ms: number): string {
-  return ms >= 500 ? ` · ${(bytes / (1 << 20) / (ms / 1000)).toFixed(1)} MB/s` : '';
+  return ms >= 500 ? ` · ${(bytes / MIB / (ms / 1000)).toFixed(1)} MB/s` : '';
 }
 
 // Time since a server timestamp; tick() keeps it current between updates.
@@ -188,8 +192,8 @@ function renderDevice(device: Device): HTMLElement {
   } else if (device.status === 'online' && device.lastSeen !== null) {
     const line = el('p', 'heartbeat');
     const pulse = el('span', 'pulse');
-    if (beats.get(device.id) !== device.lastSeen) pulse.classList.add('beat');
-    beats.set(device.id, device.lastSeen);
+    if (lastShownBeat.get(device.id) !== device.lastSeen) pulse.classList.add('beat');
+    lastShownBeat.set(device.id, device.lastSeen);
     line.append(pulse, 'Heartbeat ', since(device.lastSeen, ' ago'));
     card.append(line);
     const last = device.history[0];
@@ -238,6 +242,8 @@ function setLink(state: 'live' | 'lost', text: string): void {
   document.body.classList.toggle('stale', state === 'lost');
 }
 
+// The server sends the whole state on connect and after every change;
+// EventSource reconnects by itself when the connection drops.
 const events = new EventSource('api/events');
 events.addEventListener('state', (event) => {
   const snapshot = JSON.parse((event as MessageEvent<string>).data) as Snapshot;
@@ -246,4 +252,5 @@ events.addEventListener('state', (event) => {
   render(snapshot);
 });
 events.addEventListener('error', () => setLink('lost', 'Connection lost, reconnecting…'));
+// The timers on the page count on between updates.
 setInterval(tick, 200);

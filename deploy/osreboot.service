@@ -1,8 +1,5 @@
-# OSreboot on the VPS: status page, device API and image downloads.
-# nginx proxies /osreboot/ and osreboot.example.org to 127.0.0.1:8090.
-#   code:    /opt/osreboot (package.json + dist/), Node in /opt/node
-#   devices: /etc/osreboot/devices.json (token digests), passed as a credential
-#   images:  /srv/osreboot/files, state and outages.csv: /var/lib/osreboot
+# OSreboot on the VPS behind nginx: code in /opt/osreboot, Node in /opt/node,
+# token digests in /etc/osreboot/devices.json, files in /srv/osreboot/files.
 [Unit]
 Description=OSreboot status and image server
 After=network.target

@@ -1,11 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
-// Sums up data/outages.csv: one row per recovery with the time between its
-// stages, then the minimum, median and maximum of every column over the
-// recoveries that got as far as the reboot.
-//
+// Sums up outages.csv: a row per recovery with the time between its stages, then
+// the min, median and max of each column over the complete runs.
 //   node dist/outage-stats.js [data/outages.csv] [device]
-//   docker compose exec osreboot node dist/outage-stats.js data/outages.csv
 
 export interface Run {
   device: string;
@@ -16,9 +13,8 @@ export interface Run {
 
 export type Column = 'netboot' | 'recovery' | 'download' | 'verify' | 'write' | 'restart' | 'total';
 
-// Each column runs from one stage to the next; 'start' is the last heartbeat
-// before the outage and 'end' the first one after it. Only a run started by
-// osreboot-wipe has a whole outage: the others began in the main system.
+// Each column runs from one stage to another; 'start' and 'end' are the outage's.
+// Only a run started by osreboot-wipe has a whole outage.
 const COLUMNS: readonly [Column, string, string][] = [
   ['netboot', 'wipe', 'recovery'],
   ['recovery', 'recovery', 'reboot'],
@@ -29,9 +25,7 @@ const COLUMNS: readonly [Column, string, string][] = [
   ['total', 'start', 'end'],
 ];
 
-// A run is complete when the recovery environment got as far as restarting
-// the machine. A failed or cut-off one ends with an earlier stage, and its
-// outage lasts until someone boots the test system again.
+// A run is complete when the recovery environment got as far as the reboot.
 export function complete(run: Run): boolean {
   return run.stages.has('reboot');
 }
@@ -40,19 +34,22 @@ function outcome(run: Run): string {
   return complete(run) ? 'ok' : `stopped at ${[...run.stages.keys()].at(-1) ?? 'start'}`;
 }
 
-// Outages without the recovery environment (network gaps, plain reboots) are left out.
+// Reads the lines of outages.csv (see csvLine in store.ts). Outages without the
+// recovery environment (network gaps, plain reboots) are left out.
 export function parseRuns(csv: string, device?: string): Run[] {
   const runs: Run[] = [];
   for (const line of csv.split('\n').slice(1)) {
-    const [id, start, , downtime, , stages = ''] = line.split(',');
+    const [id, start, _end, downtime, _rebooted, stages = ''] = line.split(',');
     if (!id || !start || !downtime || (device !== undefined && id !== device)) continue;
-    const map = new Map<string, number>();
+    // "download@69.1" is the stage download, 69.1 s after the start. If a stage
+    // comes twice, as in a recovery retried within one outage, the first one counts.
+    const times = new Map<string, number>();
     for (const item of stages.split(' ')) {
       const at = item.lastIndexOf('@');
       const name = item.slice(0, at);
-      if (at > 0 && !map.has(name)) map.set(name, Number(item.slice(at + 1)));
+      if (at > 0 && !times.has(name)) times.set(name, Number(item.slice(at + 1)));
     }
-    if (map.has('recovery')) runs.push({ device: id, start, downtime: Number(downtime), stages: map });
+    if (times.has('recovery')) runs.push({ device: id, start, downtime: Number(downtime), stages: times });
   }
   return runs;
 }
@@ -108,6 +105,7 @@ export function table(runs: readonly Run[]): string {
   ].join('\n');
 }
 
+// Only when run as a command, not when the tests import this file.
 if (import.meta.main) {
   const [file = 'data/outages.csv', device] = process.argv.slice(2);
   console.log(table(parseRuns(await readFile(file, 'utf8'), device)));
