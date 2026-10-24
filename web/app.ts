@@ -166,7 +166,7 @@ const RU = {
     pause: 'Перерыв в сигналах',
   },
   filesTitle: 'Файлы на сервере',
-  filesLead: 'Всё, что ноутбук скачивает для восстановления, в порядке скачивания. Секретов в этих файлах нет, поэтому их можно раздавать открыто.',
+  filesLead: 'Всё, что ноутбук скачивает для восстановления, в порядке скачивания. В сборке нет секретов.',
   files: {
     'boot.ipxe': 'Короткий сценарий для iPXE. iPXE скачивает его первым, и он запускает среду восстановления.',
     'osreboot-recovery.efi': 'Среда восстановления: Linux в одном файле (UKI). Работает из оперативной памяти.',
@@ -267,7 +267,7 @@ const EN: Texts = {
     pause: 'Heartbeats paused',
   },
   filesTitle: 'Files on the server',
-  filesLead: 'Everything the laptop downloads for the recovery, in the order it downloads them. There are no secrets in these files, so they can be public.',
+  filesLead: 'Everything the laptop downloads for the recovery, in the order it downloads them. There are no secrets in the build.',
   files: {
     'boot.ipxe': 'A short script for iPXE. iPXE fetches it first, and it starts the recovery environment.',
     'osreboot-recovery.efi': 'The recovery environment: Linux in a single file (UKI). It runs from memory.',
