@@ -799,90 +799,90 @@ UEFI, iPXE с HTTPS, среды восстановления в памяти и 
 
 ## Источники
 
-Электронные ресурсы проверены 9–23 октября 2026 года.
+<sub>Электронные ресурсы проверены 9–23 октября 2026 года.</sub>
 
-1. MAAS: Manage machines // Canonical. — URL: https://canonical.com/maas/docs/stable/how-to-guides/manage-machines/
-2. OpenStack Ironic: User Guide. — URL: https://docs.openstack.org/ironic/victoria/user/index.html
-3. Foreman. — URL: https://theforeman.org/
-4. Dell SupportAssist OS Recovery: User's Guide. — Dell Technologies, 2023. — URL: https://dl.dell.com/topicspdf/support-assist-os-recovery_users-guide_en-us.pdf
-5. HP Sure Recover // HP Developers. — URL: https://developers.hp.com/node/12370
-6. Cloud bare metal recovery (for selected models) // ThinkPad P15v Gen 3, T15p Gen 3 User Guide. — Lenovo. — URL: https://download.lenovo.com/pccbbs/pubs/tp_p15v_t15p_gen3/ug/html_en/en/Cloud_bare_metal_recovery_(for_selected_models).html
-7. Use macOS Recovery on an Intel-based Mac // Mac User Guide. — Apple. — URL: https://support.apple.com/guide/mac-help/use-macos-recovery-on-an-intel-based-mac-mchl338cf9a8/11.0/mac/11.0
-8. Quick machine recovery // Microsoft Learn. — URL: https://learn.microsoft.com/en-us/windows/configuration/quick-machine-recovery/
-9. Using BIOSConnect to Recover SupportAssist OS Recovery Partition // Dell Knowledge Base, article 000177771. — URL: https://www.dell.com/support/kbdoc/en-us/000177771/using-biosconnect-to-recover-supportassist-os-recovery-partition
-10. HP.Firmware 1.4.1.0 (HP Client Management Script Library) // PowerShell Gallery. — URL: https://www.powershellgallery.com/packages/HP.Firmware/1.4.1.0
-11. About Connected System Recovery // Microsoft Support. — URL: https://support.microsoft.com/en-US/Windows/Experience/Backup-Recovery/about-connected-system-recovery
-12. recoveryOS and diagnostics environments // Apple Platform Security. — URL: https://support.apple.com/guide/security/recoveryos-and-diagnostics-environments-sec2512a0c09/web
-13. Windows Recovery Environment (Windows RE) technical reference // Microsoft Learn. — URL: https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/windows-recovery-environment--windows-re--technical-reference
-14. Reset your PC // Microsoft Support. — URL: https://support.microsoft.com/windows/experience/backup-recovery/reset-your-pc
-15. Cloud rebuild // Microsoft Learn. — URL: https://learn.microsoft.com/en-us/windows/configuration/cloud-rebuild
-16. Firmware Boot and Recovery // The Chromium Projects. — URL: https://www.chromium.org/chromium-os/chromiumos-design-docs/firmware-boot-and-recovery/
-17. Recover your Chromebook // Chromebook Help. — Google. — URL: https://support.google.com/chromebook/answer/1080595
-18. One Click Recovery // Intel AMT Implementation and Reference Guide. — Intel. — URL: https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/WordDocuments/oneclickrecovery.htm
-19. Absolute Security Rehydrate Remotely Restores Compromised Endpoints at Scale in Minutes // Absolute Security. 18.09.2025. — URL: https://www.absolute.com/press-releases/absolute-security-rehydrate-remotely-restores-compromised-endpoints-at-scale-in-minutes-stopping-downtime-caused-by-cyberattacks-ransomware-and-software-incidents
-20. Tinkerbell. — URL: https://tinkerbell.org/
-21. FAI — Fully Automatic Installation. — URL: https://fai-project.org/
-22. Deploying machine health checks // OpenShift Container Platform 4.13 Documentation. — Red Hat. — URL: https://docs.redhat.com/en/documentation/openshift_container_platform/4.13/html/machine_management/deploying-machine-health-checks
-23. Isard M. Autopilot: Automatic Data Center Management // ACM SIGOPS Operating Systems Review. 2007. Vol. 41, no. 2. P. 60–67. DOI: [10.1145/1243418.1243426](https://doi.org/10.1145/1243418.1243426)
-24. Clonezilla. — URL: https://clonezilla.org/
-25. FOG Project. — URL: https://github.com/FOGProject/fogproject
-26. Relax-and-Recover (ReaR). — URL: https://relax-and-recover.org/about
-27. Hibler M., Stoller L., Lepreau J., Ricci R., Barb C. Fast, Scalable Disk Imaging with Frisbee // USENIX Annual Technical Conference. 2003. — URL: https://www.usenix.org/conference/2003-usenix-annual-technical-conference/fast-scalable-disk-imaging-frisbee
-28. Jeanvoine E., Sarzyniec L., Nussbaum L. Kadeploy3: Efficient and Scalable Operating System Provisioning for Clusters // USENIX ;login:. 2013. Vol. 38, no. 1. P. 38–44. — URL: https://www.usenix.org/publications/login/february-2013-volume-38-number-1/kadeploy3-efficient-and-scalable-operating
-29. Omote Y., Shinagawa T., Kato K. Improving Agility and Elasticity in Bare-metal Clouds // ASPLOS '15. 2015. P. 145–159. DOI: [10.1145/2694344.2694349](https://doi.org/10.1145/2694344.2694349)
-30. Mohan A., Turk A., Gudimetla R. S. et al. M2: Malleable Metal as a Service // IEEE International Conference on Cloud Engineering (IC2E). 2018. P. 61–71. DOI: [10.1109/IC2E.2018.00028](https://doi.org/10.1109/IC2E.2018.00028)
-31. Ilau M.-C., Baldwin A., Caulfield T., Pym D. Modelling and simulating organizational ransomware recovery: structure, methodology, and decisions // Journal of Cybersecurity. 2025. Vol. 11, no. 1. tyaf035. DOI: [10.1093/cybsec/tyaf035](https://doi.org/10.1093/cybsec/tyaf035)
-32. A/B (seamless) system updates // Android Open Source Project. — URL: https://source.android.com/docs/core/ota/ab
-33. Atomic Rollbacks // libostree documentation. — URL: https://ostreedev.github.io/ostree/atomic-rollbacks/
-34. Introduction // Mender documentation. — URL: https://docs.mender.io/overview/introduction
-35. Automatic Boot Assessment // systemd.io. — URL: https://systemd.io/AUTOMATIC_BOOT_ASSESSMENT/
-36. systemd-sysupdate(8) // systemd manual. — URL: https://www.freedesktop.org/software/systemd/man/latest/systemd-sysupdate.html
-37. Scenarios // RAUC documentation. — URL: https://rauc.readthedocs.io/en/latest/scenarios.html
-38. Overview // SWUpdate documentation. — URL: https://sbabic.github.io/swupdate/overview.html
-39. Richardson B. Network Boot in a Zero-Trust Environment // Intel Developer Zone. 2019. — URL: https://www.intel.com/content/www/us/en/developer/articles/technical/network-boot-in-a-zero-trust-environment.html
-40. Dell BIOS Connect: Launch HTTPs Boot // Dell Technologies. — URL: https://www.dell.com/support/manuals/en-us/bios-connect/https_ug/launch-https-boot
-41. iPXE: Cryptography. — URL: https://ipxe.org/crypto
-42. netboot.xyz. — URL: https://netboot.xyz/
-43. Arch Linux Netboot. — URL: https://archlinux.org/releng/netboot/
-44. systemd-import-generator(8) // systemd manual. — URL: https://man7.org/linux/man-pages/man8/systemd-import-generator.8.html
-45. Eclypsium Discovers Multiple Vulnerabilities Affecting 129 Dell Models via Dell Remote OS Recovery and Firmware Update Capabilities (BIOS Disconnect). — Eclypsium, 2021. — URL: https://eclypsium.com/wp-content/uploads/2021/06/Eclypsium-Discovers-Multiple-Vulnerabilities-Affecting-129-Dell-Models-via-Dell-Remote-OS-Recovery-and-Firmware-Update-Capabilities.pdf
-46. Falcon F., Arce I. PixieFail: Nine vulnerabilities in Tianocore's EDK II IPv6 network stack // Quarkslab blog. 16.01.2024. — URL: https://blog.quarkslab.com/pixiefail-nine-vulnerabilities-in-tianocores-edk-ii-ipv6-network-stack.html
-47. Moser S. Securing Network-Booting Linux Systems at the Example of bwLehrpool and bwForCluster NEMO: Master's thesis. — University of Freiburg, 2023. — arXiv:2409.11413. — URL: https://arxiv.org/abs/2409.11413
-48. Mosayyebzadeh A., Mohan A., Tikale S. et al. Supporting Security Sensitive Tenants in a Bare-Metal Cloud // USENIX Annual Technical Conference (ATC '19). 2019. P. 587–602. — URL: https://www.usenix.org/conference/atc19/presentation/mosayyebzadeh
-49. Schear N. et al. Bootstrapping and Maintaining Trust in the Cloud // Annual Computer Security Applications Conference (ACSAC). 2016. — URL: https://www.ll.mit.edu/r-d/publications/bootstrapping-and-maintaining-trust-cloud
-50. Gray J. Why Do Computers Stop and What Can Be Done About It? Technical Report 85.7. — Tandem Computers, 1985. — URL: https://www.andrew.cmu.edu/course/15-440/assets/READINGS/gray1985.pdf
-51. Patterson D., Brown A., Broadwell P. et al. Recovery Oriented Computing (ROC): Motivation, Definition, Techniques, and Case Studies. Technical Report UCB/CSD-02-1175. — UC Berkeley, 2002. — URL: https://www2.eecs.berkeley.edu/Pubs/TechRpts/2002/CSD-02-1175.pdf
-52. Candea G., Fox A. Crash-Only Software // 9th Workshop on Hot Topics in Operating Systems (HotOS IX). — USENIX, 2003. — URL: https://www.usenix.org/conference/hotos-ix/crash-only-software
-53. Candea G., Kawamoto S., Fujiki Y., Friedman G., Fox A. Microreboot — A Technique for Cheap Recovery // 6th USENIX Symposium on Operating Systems Design and Implementation (OSDI '04). 2004. P. 31–44. — URL: https://static.usenix.org/event/osdi04/tech/candea.html
-54. Huang Y., Kintala C., Kolettis N., Fulton N. D. Software Rejuvenation: Analysis, Module and Applications // 25th International Symposium on Fault-Tolerant Computing (FTCS-25). 1995. P. 381–390. DOI: [10.1109/FTCS.1995.466961](https://doi.org/10.1109/FTCS.1995.466961)
-55. Kephart J. O., Chess D. M. The Vision of Autonomic Computing // IEEE Computer. 2003. Vol. 36, no. 1. P. 41–50. DOI: [10.1109/MC.2003.1160055](https://doi.org/10.1109/MC.2003.1160055)
-56. Chandra T. D., Toueg S. Unreliable Failure Detectors for Reliable Distributed Systems // Journal of the ACM. 1996. Vol. 43, no. 2. P. 225–267. DOI: [10.1145/226643.226647](https://doi.org/10.1145/226643.226647)
-57. Hayashibara N., Défago X., Yared R., Katayama T. The φ Accrual Failure Detector // 23rd IEEE International Symposium on Reliable Distributed Systems (SRDS 2004). 2004. P. 66–78. DOI: [10.1109/RELDIS.2004.1353004](https://doi.org/10.1109/RELDIS.2004.1353004)
-58. Levy S., Yao R., Wu Y. et al. Predictive and Adaptive Failure Mitigation to Avert Production Cloud VM Interruptions // 14th USENIX Symposium on Operating Systems Design and Implementation (OSDI '20). 2020. P. 1155–1170. — URL: https://www.usenix.org/conference/osdi20/presentation/levy
-59. Lin F., Beadon M., Dixit H. D., Vunnam G., Desai A., Sankar S. Hardware Remediation at Scale // 48th IEEE/IFIP International Conference on Dependable Systems and Networks Workshops (DSN-W). 2018. P. 14–17. DOI: [10.1109/DSN-W.2018.00015](https://doi.org/10.1109/DSN-W.2018.00015)
-60. How Facebook keeps its large-scale infrastructure hardware up and running // Engineering at Meta. 09.12.2020. — URL: https://engineering.fb.com/2020/12/09/data-center-engineering/how-facebook-keeps-its-large-scale-infrastructure-hardware-up-and-running/
-61. Murphy N. R., Looney J., Kacirek M. The Evolution of Automation at Google // Site Reliability Engineering / ed. by B. Beyer, C. Jones, J. Petoff, N. R. Murphy. — O'Reilly, 2016. — Ch. 7. — URL: https://sre.google/sre-book/automation-at-google/
-62. Kashyap S., Min C., Lee B., Kim T., Emelyanov P. Instant OS Updates via Userspace Checkpoint-and-Restart // USENIX Annual Technical Conference (ATC '16). 2016. P. 605–619. — URL: https://www.usenix.org/conference/atc16/technical-sessions/presentation/kashyap
-63. Евсеенко Л. Как мы ускорили автоустановку ОС в четыре раза // Хабр, блог компании Selectel. 07.08.2024. — URL: https://habr.com/ru/companies/selectel/articles/834550/
-64. Bare-Metal Provisioning своими руками, или Автоматическая подготовка серверов с нуля // Хабр, блог компании X5 Tech. 19.03.2020. — URL: https://habr.com/ru/companies/X5Tech/articles/493124/
-65. Гулаков И. Куб всему голова: строим внутреннюю Kubernetes-платформу на BareMetal в MWS // Хабр, блог компании MWS. 09.04.2025. — URL: https://habr.com/ru/companies/mws/articles/898922/
-66. Накатить ось на 500+ серверов и настроить всё за 10 минут: наш опыт использования Foreman // Хабр (Cloud.ru). 03.06.2024. — URL: https://habr.com/ru/articles/817347/
-67. Администрирование компьютеров в локальной сети до загрузки операционной системы // Хабр. 24.02.2015. — URL: https://habr.com/ru/articles/251301/
-68. Windows 11 научилась полностью переустанавливать себя из облака без загрузочной флешки // Хабр, блог компании Selectel. 15.09.2026. — URL: https://habr.com/ru/companies/selectel/news/1081890/
-69. Гурылев В. Еще раз про Intel vPro // Хабр, блог компании Intel. 24.03.2021. — URL: https://habr.com/ru/companies/intel/articles/546650/
-70. iPXE без лишних слов, но с большим количеством пояснений // Хабр. 20.05.2026. — URL: https://habr.com/ru/articles/1037416/
-71. iPXE — заливка linux, windows, утилит по сети // Хабр. 06.08.2022. — URL: https://habr.com/ru/articles/681142/
-72. Boot Ubuntu via http/ftp server with pxe (diskless boot) // Хабр. 03.08.2020. — URL: https://habr.com/ru/articles/513568/
-73. Удалённая уязвимость в прослойке Shim, позволяющая обойти UEFI Secure Boot // OpenNET. 26.01.2024. — URL: https://www.opennet.ru/opennews/art.shtml?num=60501
-74. Релиз Clonezilla Live 3.3.3-37 на базе ядра Linux 7.1 // Хабр. 22.09.2026. — URL: https://habr.com/ru/news/1084510/
-75. Мы проверяли, что устройство работает. Оказалось — мы проверяли не то // Хабр. 14.08.2026. — URL: https://habr.com/ru/articles/1070610/
-76. Егоркин С. Как мы в Авито автоматически лечим ноды в Kubernetes // Хабр, блог компании Авито. 29.09.2025. — URL: https://habr.com/ru/companies/avito/articles/951030/
-77. Гатчин Ю. А., Теплоухова О. А. Реализация контроля целостности образа операционной системы, загружаемого по сети на тонкий клиент // Научно-технический вестник информационных технологий, механики и оптики. 2015. Т. 15, № 6. С. 1115–1121. DOI: [10.17586/2226-1494-2015-15-6-1115-1121](https://doi.org/10.17586/2226-1494-2015-15-6-1115-1121)
-78. Струк П. В. Концепция построения защищенных бездисковых станций на основе технологии сетевой загрузки iPXE и протокола RDP // Технические науки — от теории к практике. 2017. № 6 (66). С. 39–45. — URL: https://cyberleninka.ru/article/n/kontseptsiya-postroeniya-zaschischennyh-bezdiskovyh-stantsiy-na-osnove-tehnologii-setevoy-zagruzki-ipxe-i-protokola-rdp
-79. Кендыш И. В. Автоматизированная система по развертыванию операционных систем с использованием ЛВС (PXE сервер) // Литьё и металлургия. 2022. № 1. С. 82–85. DOI: [10.21122/1683-6065-2022-1-82-85](https://doi.org/10.21122/1683-6065-2022-1-82-85)
-80. Кузнецов А. А. Отказоустойчивые системы: принципы проектирования и реализации // Программные системы и вычислительные методы. 2025. № 4. DOI: [10.7256/2454-0714.2025.4.76776](https://doi.org/10.7256/2454-0714.2025.4.76776)
-81. Проурзин В. А., Проурзин О. В. Методы анализа больших данных надежности восстанавливаемых систем // Интеллектуальные технологии на транспорте. 2022. № 1 (29). С. 34–38. DOI: [10.24412/2413-2527-2022-129-34-38](https://doi.org/10.24412/2413-2527-2022-129-34-38)
-82. Охтилев М. Ю., Мустафин Н. Г., Миллер В. Е., Соколов Б. В. Концепция проактивного управления сложными объектами: теоретические и технологические основы // Известия высших учебных заведений. Приборостроение. 2014. Т. 57, № 11. — URL: https://cyberleninka.ru/article/n/kontseptsiya-proaktivnogo-upravleniya-slozhnymi-obektami-teoreticheskie-i-tehnologicheskie-osnovy
+1. <sub>MAAS: Manage machines // Canonical. — URL: https://canonical.com/maas/docs/stable/how-to-guides/manage-machines/</sub>
+2. <sub>OpenStack Ironic: User Guide. — URL: https://docs.openstack.org/ironic/victoria/user/index.html</sub>
+3. <sub>Foreman. — URL: https://theforeman.org/</sub>
+4. <sub>Dell SupportAssist OS Recovery: User's Guide. — Dell Technologies, 2023. — URL: https://dl.dell.com/topicspdf/support-assist-os-recovery_users-guide_en-us.pdf</sub>
+5. <sub>HP Sure Recover // HP Developers. — URL: https://developers.hp.com/node/12370</sub>
+6. <sub>Cloud bare metal recovery (for selected models) // ThinkPad P15v Gen 3, T15p Gen 3 User Guide. — Lenovo. — URL: https://download.lenovo.com/pccbbs/pubs/tp_p15v_t15p_gen3/ug/html_en/en/Cloud_bare_metal_recovery_(for_selected_models).html</sub>
+7. <sub>Use macOS Recovery on an Intel-based Mac // Mac User Guide. — Apple. — URL: https://support.apple.com/guide/mac-help/use-macos-recovery-on-an-intel-based-mac-mchl338cf9a8/11.0/mac/11.0</sub>
+8. <sub>Quick machine recovery // Microsoft Learn. — URL: https://learn.microsoft.com/en-us/windows/configuration/quick-machine-recovery/</sub>
+9. <sub>Using BIOSConnect to Recover SupportAssist OS Recovery Partition // Dell Knowledge Base, article 000177771. — URL: https://www.dell.com/support/kbdoc/en-us/000177771/using-biosconnect-to-recover-supportassist-os-recovery-partition</sub>
+10. <sub>HP.Firmware 1.4.1.0 (HP Client Management Script Library) // PowerShell Gallery. — URL: https://www.powershellgallery.com/packages/HP.Firmware/1.4.1.0</sub>
+11. <sub>About Connected System Recovery // Microsoft Support. — URL: https://support.microsoft.com/en-US/Windows/Experience/Backup-Recovery/about-connected-system-recovery</sub>
+12. <sub>recoveryOS and diagnostics environments // Apple Platform Security. — URL: https://support.apple.com/guide/security/recoveryos-and-diagnostics-environments-sec2512a0c09/web</sub>
+13. <sub>Windows Recovery Environment (Windows RE) technical reference // Microsoft Learn. — URL: https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/windows-recovery-environment--windows-re--technical-reference</sub>
+14. <sub>Reset your PC // Microsoft Support. — URL: https://support.microsoft.com/windows/experience/backup-recovery/reset-your-pc</sub>
+15. <sub>Cloud rebuild // Microsoft Learn. — URL: https://learn.microsoft.com/en-us/windows/configuration/cloud-rebuild</sub>
+16. <sub>Firmware Boot and Recovery // The Chromium Projects. — URL: https://www.chromium.org/chromium-os/chromiumos-design-docs/firmware-boot-and-recovery/</sub>
+17. <sub>Recover your Chromebook // Chromebook Help. — Google. — URL: https://support.google.com/chromebook/answer/1080595</sub>
+18. <sub>One Click Recovery // Intel AMT Implementation and Reference Guide. — Intel. — URL: https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/WordDocuments/oneclickrecovery.htm</sub>
+19. <sub>Absolute Security Rehydrate Remotely Restores Compromised Endpoints at Scale in Minutes // Absolute Security. 18.09.2025. — URL: https://www.absolute.com/press-releases/absolute-security-rehydrate-remotely-restores-compromised-endpoints-at-scale-in-minutes-stopping-downtime-caused-by-cyberattacks-ransomware-and-software-incidents</sub>
+20. <sub>Tinkerbell. — URL: https://tinkerbell.org/</sub>
+21. <sub>FAI — Fully Automatic Installation. — URL: https://fai-project.org/</sub>
+22. <sub>Deploying machine health checks // OpenShift Container Platform 4.13 Documentation. — Red Hat. — URL: https://docs.redhat.com/en/documentation/openshift_container_platform/4.13/html/machine_management/deploying-machine-health-checks</sub>
+23. <sub>Isard M. Autopilot: Automatic Data Center Management // ACM SIGOPS Operating Systems Review. 2007. Vol. 41, no. 2. P. 60–67. DOI: [10.1145/1243418.1243426](https://doi.org/10.1145/1243418.1243426)</sub>
+24. <sub>Clonezilla. — URL: https://clonezilla.org/</sub>
+25. <sub>FOG Project. — URL: https://github.com/FOGProject/fogproject</sub>
+26. <sub>Relax-and-Recover (ReaR). — URL: https://relax-and-recover.org/about</sub>
+27. <sub>Hibler M., Stoller L., Lepreau J., Ricci R., Barb C. Fast, Scalable Disk Imaging with Frisbee // USENIX Annual Technical Conference. 2003. — URL: https://www.usenix.org/conference/2003-usenix-annual-technical-conference/fast-scalable-disk-imaging-frisbee</sub>
+28. <sub>Jeanvoine E., Sarzyniec L., Nussbaum L. Kadeploy3: Efficient and Scalable Operating System Provisioning for Clusters // USENIX ;login:. 2013. Vol. 38, no. 1. P. 38–44. — URL: https://www.usenix.org/publications/login/february-2013-volume-38-number-1/kadeploy3-efficient-and-scalable-operating</sub>
+29. <sub>Omote Y., Shinagawa T., Kato K. Improving Agility and Elasticity in Bare-metal Clouds // ASPLOS '15. 2015. P. 145–159. DOI: [10.1145/2694344.2694349](https://doi.org/10.1145/2694344.2694349)</sub>
+30. <sub>Mohan A., Turk A., Gudimetla R. S. et al. M2: Malleable Metal as a Service // IEEE International Conference on Cloud Engineering (IC2E). 2018. P. 61–71. DOI: [10.1109/IC2E.2018.00028](https://doi.org/10.1109/IC2E.2018.00028)</sub>
+31. <sub>Ilau M.-C., Baldwin A., Caulfield T., Pym D. Modelling and simulating organizational ransomware recovery: structure, methodology, and decisions // Journal of Cybersecurity. 2025. Vol. 11, no. 1. tyaf035. DOI: [10.1093/cybsec/tyaf035](https://doi.org/10.1093/cybsec/tyaf035)</sub>
+32. <sub>A/B (seamless) system updates // Android Open Source Project. — URL: https://source.android.com/docs/core/ota/ab</sub>
+33. <sub>Atomic Rollbacks // libostree documentation. — URL: https://ostreedev.github.io/ostree/atomic-rollbacks/</sub>
+34. <sub>Introduction // Mender documentation. — URL: https://docs.mender.io/overview/introduction</sub>
+35. <sub>Automatic Boot Assessment // systemd.io. — URL: https://systemd.io/AUTOMATIC_BOOT_ASSESSMENT/</sub>
+36. <sub>systemd-sysupdate(8) // systemd manual. — URL: https://www.freedesktop.org/software/systemd/man/latest/systemd-sysupdate.html</sub>
+37. <sub>Scenarios // RAUC documentation. — URL: https://rauc.readthedocs.io/en/latest/scenarios.html</sub>
+38. <sub>Overview // SWUpdate documentation. — URL: https://sbabic.github.io/swupdate/overview.html</sub>
+39. <sub>Richardson B. Network Boot in a Zero-Trust Environment // Intel Developer Zone. 2019. — URL: https://www.intel.com/content/www/us/en/developer/articles/technical/network-boot-in-a-zero-trust-environment.html</sub>
+40. <sub>Dell BIOS Connect: Launch HTTPs Boot // Dell Technologies. — URL: https://www.dell.com/support/manuals/en-us/bios-connect/https_ug/launch-https-boot</sub>
+41. <sub>iPXE: Cryptography. — URL: https://ipxe.org/crypto</sub>
+42. <sub>netboot.xyz. — URL: https://netboot.xyz/</sub>
+43. <sub>Arch Linux Netboot. — URL: https://archlinux.org/releng/netboot/</sub>
+44. <sub>systemd-import-generator(8) // systemd manual. — URL: https://man7.org/linux/man-pages/man8/systemd-import-generator.8.html</sub>
+45. <sub>Eclypsium Discovers Multiple Vulnerabilities Affecting 129 Dell Models via Dell Remote OS Recovery and Firmware Update Capabilities (BIOS Disconnect). — Eclypsium, 2021. — URL: https://eclypsium.com/wp-content/uploads/2021/06/Eclypsium-Discovers-Multiple-Vulnerabilities-Affecting-129-Dell-Models-via-Dell-Remote-OS-Recovery-and-Firmware-Update-Capabilities.pdf</sub>
+46. <sub>Falcon F., Arce I. PixieFail: Nine vulnerabilities in Tianocore's EDK II IPv6 network stack // Quarkslab blog. 16.01.2024. — URL: https://blog.quarkslab.com/pixiefail-nine-vulnerabilities-in-tianocores-edk-ii-ipv6-network-stack.html</sub>
+47. <sub>Moser S. Securing Network-Booting Linux Systems at the Example of bwLehrpool and bwForCluster NEMO: Master's thesis. — University of Freiburg, 2023. — arXiv:2409.11413. — URL: https://arxiv.org/abs/2409.11413</sub>
+48. <sub>Mosayyebzadeh A., Mohan A., Tikale S. et al. Supporting Security Sensitive Tenants in a Bare-Metal Cloud // USENIX Annual Technical Conference (ATC '19). 2019. P. 587–602. — URL: https://www.usenix.org/conference/atc19/presentation/mosayyebzadeh</sub>
+49. <sub>Schear N. et al. Bootstrapping and Maintaining Trust in the Cloud // Annual Computer Security Applications Conference (ACSAC). 2016. — URL: https://www.ll.mit.edu/r-d/publications/bootstrapping-and-maintaining-trust-cloud</sub>
+50. <sub>Gray J. Why Do Computers Stop and What Can Be Done About It? Technical Report 85.7. — Tandem Computers, 1985. — URL: https://www.andrew.cmu.edu/course/15-440/assets/READINGS/gray1985.pdf</sub>
+51. <sub>Patterson D., Brown A., Broadwell P. et al. Recovery Oriented Computing (ROC): Motivation, Definition, Techniques, and Case Studies. Technical Report UCB/CSD-02-1175. — UC Berkeley, 2002. — URL: https://www2.eecs.berkeley.edu/Pubs/TechRpts/2002/CSD-02-1175.pdf</sub>
+52. <sub>Candea G., Fox A. Crash-Only Software // 9th Workshop on Hot Topics in Operating Systems (HotOS IX). — USENIX, 2003. — URL: https://www.usenix.org/conference/hotos-ix/crash-only-software</sub>
+53. <sub>Candea G., Kawamoto S., Fujiki Y., Friedman G., Fox A. Microreboot — A Technique for Cheap Recovery // 6th USENIX Symposium on Operating Systems Design and Implementation (OSDI '04). 2004. P. 31–44. — URL: https://static.usenix.org/event/osdi04/tech/candea.html</sub>
+54. <sub>Huang Y., Kintala C., Kolettis N., Fulton N. D. Software Rejuvenation: Analysis, Module and Applications // 25th International Symposium on Fault-Tolerant Computing (FTCS-25). 1995. P. 381–390. DOI: [10.1109/FTCS.1995.466961](https://doi.org/10.1109/FTCS.1995.466961)</sub>
+55. <sub>Kephart J. O., Chess D. M. The Vision of Autonomic Computing // IEEE Computer. 2003. Vol. 36, no. 1. P. 41–50. DOI: [10.1109/MC.2003.1160055](https://doi.org/10.1109/MC.2003.1160055)</sub>
+56. <sub>Chandra T. D., Toueg S. Unreliable Failure Detectors for Reliable Distributed Systems // Journal of the ACM. 1996. Vol. 43, no. 2. P. 225–267. DOI: [10.1145/226643.226647](https://doi.org/10.1145/226643.226647)</sub>
+57. <sub>Hayashibara N., Défago X., Yared R., Katayama T. The φ Accrual Failure Detector // 23rd IEEE International Symposium on Reliable Distributed Systems (SRDS 2004). 2004. P. 66–78. DOI: [10.1109/RELDIS.2004.1353004](https://doi.org/10.1109/RELDIS.2004.1353004)</sub>
+58. <sub>Levy S., Yao R., Wu Y. et al. Predictive and Adaptive Failure Mitigation to Avert Production Cloud VM Interruptions // 14th USENIX Symposium on Operating Systems Design and Implementation (OSDI '20). 2020. P. 1155–1170. — URL: https://www.usenix.org/conference/osdi20/presentation/levy</sub>
+59. <sub>Lin F., Beadon M., Dixit H. D., Vunnam G., Desai A., Sankar S. Hardware Remediation at Scale // 48th IEEE/IFIP International Conference on Dependable Systems and Networks Workshops (DSN-W). 2018. P. 14–17. DOI: [10.1109/DSN-W.2018.00015](https://doi.org/10.1109/DSN-W.2018.00015)</sub>
+60. <sub>How Facebook keeps its large-scale infrastructure hardware up and running // Engineering at Meta. 09.12.2020. — URL: https://engineering.fb.com/2020/12/09/data-center-engineering/how-facebook-keeps-its-large-scale-infrastructure-hardware-up-and-running/</sub>
+61. <sub>Murphy N. R., Looney J., Kacirek M. The Evolution of Automation at Google // Site Reliability Engineering / ed. by B. Beyer, C. Jones, J. Petoff, N. R. Murphy. — O'Reilly, 2016. — Ch. 7. — URL: https://sre.google/sre-book/automation-at-google/</sub>
+62. <sub>Kashyap S., Min C., Lee B., Kim T., Emelyanov P. Instant OS Updates via Userspace Checkpoint-and-Restart // USENIX Annual Technical Conference (ATC '16). 2016. P. 605–619. — URL: https://www.usenix.org/conference/atc16/technical-sessions/presentation/kashyap</sub>
+63. <sub>Евсеенко Л. Как мы ускорили автоустановку ОС в четыре раза // Хабр, блог компании Selectel. 07.08.2024. — URL: https://habr.com/ru/companies/selectel/articles/834550/</sub>
+64. <sub>Bare-Metal Provisioning своими руками, или Автоматическая подготовка серверов с нуля // Хабр, блог компании X5 Tech. 19.03.2020. — URL: https://habr.com/ru/companies/X5Tech/articles/493124/</sub>
+65. <sub>Гулаков И. Куб всему голова: строим внутреннюю Kubernetes-платформу на BareMetal в MWS // Хабр, блог компании MWS. 09.04.2025. — URL: https://habr.com/ru/companies/mws/articles/898922/</sub>
+66. <sub>Накатить ось на 500+ серверов и настроить всё за 10 минут: наш опыт использования Foreman // Хабр (Cloud.ru). 03.06.2024. — URL: https://habr.com/ru/articles/817347/</sub>
+67. <sub>Администрирование компьютеров в локальной сети до загрузки операционной системы // Хабр. 24.02.2015. — URL: https://habr.com/ru/articles/251301/</sub>
+68. <sub>Windows 11 научилась полностью переустанавливать себя из облака без загрузочной флешки // Хабр, блог компании Selectel. 15.09.2026. — URL: https://habr.com/ru/companies/selectel/news/1081890/</sub>
+69. <sub>Гурылев В. Еще раз про Intel vPro // Хабр, блог компании Intel. 24.03.2021. — URL: https://habr.com/ru/companies/intel/articles/546650/</sub>
+70. <sub>iPXE без лишних слов, но с большим количеством пояснений // Хабр. 20.05.2026. — URL: https://habr.com/ru/articles/1037416/</sub>
+71. <sub>iPXE — заливка linux, windows, утилит по сети // Хабр. 06.08.2022. — URL: https://habr.com/ru/articles/681142/</sub>
+72. <sub>Boot Ubuntu via http/ftp server with pxe (diskless boot) // Хабр. 03.08.2020. — URL: https://habr.com/ru/articles/513568/</sub>
+73. <sub>Удалённая уязвимость в прослойке Shim, позволяющая обойти UEFI Secure Boot // OpenNET. 26.01.2024. — URL: https://www.opennet.ru/opennews/art.shtml?num=60501</sub>
+74. <sub>Релиз Clonezilla Live 3.3.3-37 на базе ядра Linux 7.1 // Хабр. 22.09.2026. — URL: https://habr.com/ru/news/1084510/</sub>
+75. <sub>Мы проверяли, что устройство работает. Оказалось — мы проверяли не то // Хабр. 14.08.2026. — URL: https://habr.com/ru/articles/1070610/</sub>
+76. <sub>Егоркин С. Как мы в Авито автоматически лечим ноды в Kubernetes // Хабр, блог компании Авито. 29.09.2025. — URL: https://habr.com/ru/companies/avito/articles/951030/</sub>
+77. <sub>Гатчин Ю. А., Теплоухова О. А. Реализация контроля целостности образа операционной системы, загружаемого по сети на тонкий клиент // Научно-технический вестник информационных технологий, механики и оптики. 2015. Т. 15, № 6. С. 1115–1121. DOI: [10.17586/2226-1494-2015-15-6-1115-1121](https://doi.org/10.17586/2226-1494-2015-15-6-1115-1121)</sub>
+78. <sub>Струк П. В. Концепция построения защищенных бездисковых станций на основе технологии сетевой загрузки iPXE и протокола RDP // Технические науки — от теории к практике. 2017. № 6 (66). С. 39–45. — URL: https://cyberleninka.ru/article/n/kontseptsiya-postroeniya-zaschischennyh-bezdiskovyh-stantsiy-na-osnove-tehnologii-setevoy-zagruzki-ipxe-i-protokola-rdp</sub>
+79. <sub>Кендыш И. В. Автоматизированная система по развертыванию операционных систем с использованием ЛВС (PXE сервер) // Литьё и металлургия. 2022. № 1. С. 82–85. DOI: [10.21122/1683-6065-2022-1-82-85](https://doi.org/10.21122/1683-6065-2022-1-82-85)</sub>
+80. <sub>Кузнецов А. А. Отказоустойчивые системы: принципы проектирования и реализации // Программные системы и вычислительные методы. 2025. № 4. DOI: [10.7256/2454-0714.2025.4.76776](https://doi.org/10.7256/2454-0714.2025.4.76776)</sub>
+81. <sub>Проурзин В. А., Проурзин О. В. Методы анализа больших данных надежности восстанавливаемых систем // Интеллектуальные технологии на транспорте. 2022. № 1 (29). С. 34–38. DOI: [10.24412/2413-2527-2022-129-34-38](https://doi.org/10.24412/2413-2527-2022-129-34-38)</sub>
+82. <sub>Охтилев М. Ю., Мустафин Н. Г., Миллер В. Е., Соколов Б. В. Концепция проактивного управления сложными объектами: теоретические и технологические основы // Известия высших учебных заведений. Приборостроение. 2014. Т. 57, № 11. — URL: https://cyberleninka.ru/article/n/kontseptsiya-proaktivnogo-upravleniya-slozhnymi-obektami-teoreticheskie-i-tehnologicheskie-osnovy</sub>
 
 ## Приложение. Как запустить
 
