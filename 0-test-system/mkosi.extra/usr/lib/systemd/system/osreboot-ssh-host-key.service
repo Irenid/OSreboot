@@ -1,0 +1,19 @@
+# The same SSH host key after every restore: the TPM-encrypted key goes in place before sshd starts.
+[Unit]
+Description=OSreboot SSH host key
+# Only an order: Wants= would wait 90 s where there is no TPM.
+After=tpm2.target
+Before=sshdgenkeys.service sshd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# A virtual machine without the TPM can pass the key in.
+ImportCredential=osreboot-ssh-host-key
+ExecStart=/bin/sh -ec '\
+	[ -f %d/osreboot-ssh-host-key ] || exit 0; \
+	install -m 0600 %d/osreboot-ssh-host-key /etc/ssh/ssh_host_ed25519_key; \
+	ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key >/etc/ssh/ssh_host_ed25519_key.pub'
+
+[Install]
+WantedBy=multi-user.target

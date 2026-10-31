@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Removes the default boot entry osreboot-wipe set, so the next boot is not iPXE.
+# Runs when the restored test system starts and when the recovery gives up.
+set -euo pipefail
+
+# systemd-boot reads its default entry from this EFI variable.
+DEFAULT=/sys/firmware/efi/efivars/LoaderEntryDefault-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+
+if [ -f "$DEFAULT" ]; then
+	# An empty name removes the variable.
+	bootctl set-default ""
+	echo "osreboot-netboot-off: the next boot no longer goes to iPXE"
+fi

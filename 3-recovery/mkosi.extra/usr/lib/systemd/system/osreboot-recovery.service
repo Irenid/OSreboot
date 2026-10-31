@@ -1,0 +1,17 @@
+[Unit]
+Description=OSreboot recovery of the test system
+Wants=network-online.target
+After=network-online.target tpm2.target
+Before=getty@tty1.service
+
+[Service]
+Type=oneshot
+Environment=OSREBOOT_URL=https://example.org/osreboot
+ImportCredential=osreboot-token
+ExecStart=/usr/local/sbin/osreboot-recovery
+TimeoutStartSec=infinity
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

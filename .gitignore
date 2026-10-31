@@ -1,22 +1,27 @@
 node_modules/
 dist/
-*.tsbuildinfo
-*.log
 
-# Runtime state, served images and local settings
-data/*
-!data/.gitkeep
-files/*
-!files/.gitkeep
-config/devices.json
+# mkosi: build output, caches and site settings (server address, SSH keys)
+mkosi.output/
+mkosi.cache/
+mkosi.tools/
+mkosi.tools.manifest
+mkosi.local.conf
+mkosi.local.extra/
+
+# iPXE source checkout and the built ipxe.efi
+2-ipxe/build/
+2-ipxe/out/
+
+# Server runtime state, served images, device tokens
+server/data/
+server/files/
+server/config/devices.json
 *.token
-.env
-.env.*
 
 # Personal notes, not part of the project
 private/
 
-# Editors
+# WebStorm settings, ONLYOFFICE lock file of an open document
 .idea/
-.vscode/
-*.swp
+.~lock.*#

@@ -1,0 +1,12 @@
+[Unit]
+Description=OSreboot: end the network boot
+# Only in the test system: the recovery environment has these files too.
+ConditionKernelCommandLine=root=PARTLABEL=osreboot-root
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/osreboot-netboot-off
+
+[Install]
+WantedBy=multi-user.target

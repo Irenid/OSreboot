@@ -1,0 +1,38 @@
+#!ipxe
+echo OSreboot network boot (iPXE ${version})
+set host @HOST@
+
+:start
+clear dns ||
+dhcp && goto configured ||
+echo DHCP failed: no cable or no DHCP server
+goto retry
+:configured
+echo Address ${net0/ip}, gateway ${net0/gateway}, DNS ${dns}
+
+set tries:int32 0
+:resolve
+nslookup server ${host} && goto resolved ||
+inc tries
+iseq ${tries} 3 && goto public_dns ||
+echo DNS ${dns} did not resolve ${host}, retry ${tries} in 2 s
+sleep 2
+goto resolve
+:public_dns
+echo DNS ${dns} failed 3 times, trying 1.1.1.1
+set dns 1.1.1.1
+nslookup server ${host} && goto resolved ||
+echo 1.1.1.1 failed, trying 8.8.8.8
+set dns 8.8.8.8
+nslookup server ${host} && goto resolved ||
+echo No DNS server resolved ${host}
+goto retry
+
+:resolved
+echo ${host} is ${server} (DNS ${dns})
+chain --autofree https://${host}/files/boot.ipxe ||
+
+:retry
+echo The network boot failed, starting over.
+prompt --key 0x02 --timeout 10000 Press Ctrl-B within 10 s for the iPXE shell && shell ||
+goto start

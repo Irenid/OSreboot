@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Stage 1, run on the test system: makes iPXE the default boot entry, wipes
+# osreboot-esp and osreboot-root and resets the machine.
+#   osreboot-wipe           checks and shows the plan, changes nothing
+#   osreboot-wipe --apply   wipes and resets the machine
+set -euo pipefail
+
+ESP_LABEL=osreboot-esp
+ROOT_LABEL=osreboot-root
+IPXE_ENTRY=osreboot-ipxe.conf
+WIPE_MIB=64
+WORK=/run/osreboot-wipe
+
+die() {
+	echo "osreboot-wipe: $*" >&2
+	exit 1
+}
+
+partition() {
+	local found
+	found=$(lsblk -rno PATH,PARTLABEL | awk -v label="$1" '$2 == label { print $1 }')
+	[ "$(echo "$found" | wc -w)" = 1 ] || die "need exactly one partition labelled $1"
+	echo "$found"
+}
+
+check_ipxe() {
+	local first uuid main_esp loader ok
+	first=$(efibootmgr | awk '$1 == "BootOrder:" { print substr($2, 1, 4) }')
+	[ -n "$first" ] || die "the firmware has no BootOrder"
+	uuid=$(efibootmgr -v | grep "^Boot$first" | grep -oi 'GPT,[^,]*' | cut -d, -f2 | tr A-F a-f || true)
+	main_esp=$(readlink -f "/dev/disk/by-partuuid/$uuid")
+	[ -b "$main_esp" ] || die "Boot$first, the first entry of BootOrder, does not start from a partition"
+	[ "$main_esp" != "$esp" ] || die "Boot$first starts from $ESP_LABEL, the partition this wipes"
+
+	mkdir -p "$WORK/esp"
+	mount -t vfat -o ro "$main_esp" "$WORK/esp"
+	ok=no
+	if [ -f "$WORK/esp/loader/entries/$IPXE_ENTRY" ]; then
+		# The line "efi /EFI/osreboot/ipxe.efi" names the program.
+		loader=$(awk '$1 == "efi" { print $2 }' "$WORK/esp/loader/entries/$IPXE_ENTRY")
+		if [ -f "$WORK/esp/$loader" ]; then
+			ok=yes
+		fi
+	fi
+	umount "$WORK/esp"
+	[ $ok = yes ] || die "$main_esp has no iPXE entry: run 2-ipxe/install-ipxe.sh in the main system"
+}
+
+report() {
+	osreboot-client stage "$@" || echo "the server did not take the $1 report"
+}
+
+[ "$(id -u)" = 0 ] || die "run it as root"
+esp=$(partition $ESP_LABEL)
+root=$(partition $ROOT_LABEL)
+[ "$(findmnt -no SOURCE /)" = "$root" ] || die "/ is not on $root: this is not the test system"
+mkdir -p "$WORK"
+chmod 0700 "$WORK"
+check_ipxe
+
+ OSREBOOT_URL=$(systemctl show -P Environment osreboot-heartbeat.service | grep -o 'OSREBOOT_URL=[^ ]*' | tail -n 1 | cut -d= -f2-) ||
+	die "osreboot-heartbeat.service has no OSREBOOT_URL"
+systemd-creds decrypt --name=osreboot-token /etc/credstore.encrypted/osreboot-token "$WORK/token"
+export OSREBOOT_URL OSREBOOT_TOKEN_FILE=$WORK/token
+
+echo "Plan:"
+echo "  default boot entry: $IPXE_ENTRY on the main ESP, until the restored system has started"
+echo "  stop osreboot-heartbeat.service, report the stage wipe to $OSREBOOT_URL"
+echo "  overwrite the first $WIPE_MIB MiB of $esp ($ESP_LABEL) and $root ($ROOT_LABEL)"
+echo "  reset the machine at once"
+if [ "${1:-}" != --apply ]; then
+	echo "Nothing was changed. Run with --apply to wipe."
+	exit 0
+fi
+
+efibootmgr --delete-bootnext >/dev/null 2>&1 || true
+bootctl set-oneshot ""
+bootctl set-default "$IPXE_ENTRY"
+systemctl stop osreboot-heartbeat.service
+report wipe - "overwriting $ESP_LABEL and $ROOT_LABEL"
+report netboot - "wiped, rebooting into the network boot, default $IPXE_ENTRY"
+sync
+echo u >/proc/sysrq-trigger
+dd if=/dev/zero of="$esp" bs=1M count=$WIPE_MIB oflag=direct status=none
+dd if=/dev/zero of="$root" bs=1M count=$WIPE_MIB oflag=direct status=none
+echo b >/proc/sysrq-trigger

@@ -1,0 +1,309 @@
+#!/usr/bin/env bash
+# Stage 3, runs from memory: downloads the images, checks them, writes them into
+# osreboot-esp and osreboot-root and reboots into the test system.
+set -Eeuo pipefail
+
+ESP_LABEL=osreboot-esp
+ROOT_LABEL=osreboot-root
+ESP_IMAGE=osreboot-test.esp.raw
+ROOT_IMAGE=osreboot-test.root-x86-64.raw
+# GPT partition types: EFI system partition; Linux data or x86-64 root.
+ESP_TYPE=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+ROOT_TYPES="0fc63daf-8483-4772-8e79-3d69d8477de4 4f68bce3-e8cd-4db1-96e7-fbcaf984b709"
+MIB=$((1024 * 1024))
+GIB=$((1024 * MIB))
+# A test partition is small; a larger one may belong to the main system.
+ESP_MAX=$((4 * GIB))
+ROOT_MAX=$((128 * GIB))
+ENTRY_LABEL="OSreboot test"
+FALLBACK_MIN=20
+RETRY_S=10
+DOWNLOAD_TRIES=3
+LOADER='\EFI\systemd\systemd-bootx64.efi'
+WORK=/run/osreboot
+LOG_DIR=/var/log/osreboot
+
+if [ -z "${OSREBOOT_URL:-}" ]; then
+	echo "osreboot-recovery: OSREBOOT_URL is not set" >&2
+	exit 1
+fi
+FILES=$OSREBOOT_URL/files
+in_memory=no
+
+say() {
+	echo
+	echo "== $*"
+}
+
+report() {
+	[ -n "${OSREBOOT_TOKEN_FILE:-}" ] || return 0
+	osreboot-client stage "$@" >/dev/null 2>&1 || echo "   (the server did not take the $1 report)"
+}
+
+# Stops the recovery: reports the error and writes nothing more.
+fail() {
+	# A failed command in here must not call fail() again.
+	trap - ERR
+	echo
+	echo "!! RECOVERY STOPPED: $*"
+	report failed - "$*"
+	echo "!! Nothing more is written. Log in on tty1 or over SSH to look around."
+	[ "$in_memory" = yes ] || exit 1
+	# Otherwise every boot would come back here and stop again.
+	osreboot-netboot-off || echo "!! Could not turn the network boot off."
+	if systemd-run --quiet --unit=osreboot-fallback-reboot --on-active="${FALLBACK_MIN}min" systemctl reboot; then
+		echo "!! The machine restarts into its own system in $FALLBACK_MIN min; to stay, run"
+		echo "!!   systemctl stop osreboot-fallback-reboot.timer"
+	else
+		echo "!! Could not schedule the restart."
+	fi
+	exit 1
+}
+# Any failed command calls fail(); set -E passes the trap into functions. Inside
+# $(...) the trap does nothing: the failure comes back to the main shell.
+trap '[ "$BASH_SUBSHELL" -gt 0 ] || fail "command failed at line $LINENO: $BASH_COMMAND"' ERR
+
+# Slower than 1 KiB/s for a minute is a failure, not an endless hang.
+fetch() {
+	curl --fail --silent --show-error --location --connect-timeout 10 \
+		--speed-limit 1024 --speed-time 60 "$@"
+}
+
+until_ok() {
+	until "$@"; do
+		echo "   no answer from the server, trying again in $RETRY_S s"
+		sleep "$RETRY_S"
+	done
+}
+
+file_size() {
+	if [ -f "$1" ]; then
+		stat -c %s "$1"
+	else
+		echo 0
+	fi
+}
+
+# True while the process $1 runs: kill -0 sends no signal, it only checks.
+running() {
+	kill -0 "$1" 2>/dev/null
+}
+
+# The disk may appear a few seconds after the boot: wait up to 30 s.
+find_partition() {
+	local found
+	for _ in $(seq 30); do
+		udevadm settle
+		found=$(lsblk -rno PATH,PARTLABEL | awk -v label="$1" '$2 == label { print $1 }')
+		[ -z "$found" ] || break
+		sleep 1
+	done
+	[ "$(echo "$found" | wc -w)" = 1 ] || return 1
+	echo "$found"
+}
+
+check_partition() {
+	local dev=$1 need=$2 fs=$3 max=$4 types=$5
+	local type allowed t found size
+	type=$(lsblk -dno PARTTYPE "$dev")
+	allowed=no
+	for t in $types; do
+		if [ "$t" = "$type" ]; then
+			allowed=yes
+		fi
+	done
+	[ $allowed = yes ] || fail "$dev has the partition type $type"
+	# blkid fails on a partition without a file system.
+	found=$(blkid -o value -s TYPE "$dev" || true)
+	if [ -n "$found" ] && [ "$found" != "$fs" ]; then
+		fail "$dev holds $found, not $fs: refusing to overwrite it"
+	fi
+	size=$(blockdev --getsize64 "$dev")
+	[ "$size" -le "$max" ] || fail "$dev is $((size / GIB)) GiB, larger than a test partition"
+	[ "$need" -le "$size" ] || fail "the image ($need bytes) does not fit into $dev ($size bytes)"
+	[ -z "$(findmnt -rno TARGET -S "$dev")" ] || fail "$dev is mounted"
+}
+
+mkdir -p "$WORK"
+chmod 0700 "$WORK"
+
+# Encrypted with the machine's TPM; a virtual machine can pass it in instead.
+if systemd-creds decrypt --name=osreboot-token /etc/credstore.encrypted/osreboot-token "$WORK/token" 2>/dev/null; then
+	export OSREBOOT_TOKEN_FILE=$WORK/token
+elif [ -f "${CREDENTIALS_DIRECTORY:-}/osreboot-token" ]; then
+	export OSREBOOT_TOKEN_FILE=$CREDENTIALS_DIRECTORY/osreboot-token
+else
+	echo "No device token: the progress is shown here only."
+fi
+
+say "OSreboot recovery, kernel $(uname -r), server $OSREBOOT_URL"
+# The UKI unpacks the whole system into memory, so / is a file system in RAM.
+fstype=$(findmnt -no FSTYPE /)
+if [ "$fstype" = rootfs ] || [ "$fstype" = tmpfs ] || [ "$fstype" = ramfs ]; then
+	in_memory=yes
+else
+	fail "/ is not in memory: this is not the recovery environment"
+fi
+report recovery - "running from memory, kernel $(uname -r)"
+
+say "Looking for the partitions $ESP_LABEL and $ROOT_LABEL"
+report partition - "looking for $ESP_LABEL and $ROOT_LABEL"
+esp=$(find_partition $ESP_LABEL) || fail "need exactly one partition labelled $ESP_LABEL"
+root=$(find_partition $ROOT_LABEL) || fail "need exactly one partition labelled $ROOT_LABEL"
+disk=/dev/$(lsblk -no PKNAME "$esp")
+[ "$disk" = "/dev/$(lsblk -no PKNAME "$root")" ] || fail "$esp and $root are on different disks"
+echo "   $esp ($ESP_LABEL) and $root ($ROOT_LABEL) on $disk"
+
+# Maps from the image name to a number, like objects in JS: size[$image].
+declare -A zst_size size checksum
+
+# zst_size[$1]: the Content-Length of a HEAD request for $1.zst.
+size_on_server() {
+	local headers
+	headers=$(fetch --head "$FILES/$1.zst") || return 1
+	zst_size[$1]=$(echo "$headers" | tr -d '\r' | awk 'tolower($1) == "content-length:" { n = $2 } END { print n + 0 }')
+}
+
+percent_done() {
+	local have
+	have=$(file_size "$WORK/$1.zst")
+	echo $(((done_bytes + have) * 100 / total))
+}
+
+# -C -: after a broken connection the next try continues from the bytes already there.
+download() {
+	local image=$1 file=$WORK/$1.zst pid percent
+	while [ "$(file_size "$file")" -lt "${zst_size[$image]}" ]; do
+		fetch -C - -o "$file" "$FILES/$image.zst" &
+		pid=$!
+		while running "$pid"; do
+			percent=$(percent_done "$image")
+			printf '   %s: %3d%% of %d MiB\n' "$image.zst" "$percent" $((total / MIB))
+			report download "$percent" "$image.zst"
+			sleep 2
+		done
+		if ! wait "$pid"; then
+			echo "   the download of $image.zst broke off, resuming in $RETRY_S s"
+			report download "$(percent_done "$image")" "$image.zst: no connection, resuming"
+			sleep "$RETRY_S"
+		fi
+	done
+}
+
+# Sets size and checksum; returns 1 if an image is damaged.
+verify_images() {
+	local image file
+	for image in $ESP_IMAGE $ROOT_IMAGE; do
+		file=$WORK/$image.zst
+		# A line of SHA256SUMS is "SUM  NAME", or "SUM *NAME".
+		checksum[$image]=$(awk -v name="$image" '$2 == name || $2 == "*" name { print $1 }' "$WORK/SHA256SUMS")
+		[ -n "${checksum[$image]}" ] || fail "SHA256SUMS has no line for $image"
+		if [ "$(file_size "$file")" != "${zst_size[$image]}" ] ||
+			[ "$(zstd -dcq "$file" | sha256sum | cut -d' ' -f1)" != "${checksum[$image]}" ]; then
+			echo "   $image.zst does not match SHA256SUMS"
+			return 1
+		fi
+		size[$image]=$(zstd -dcq "$file" | wc -c)
+		echo "   $image: $((size[$image] / MIB)) MiB, checksum matches"
+	done
+}
+
+for try in $(seq $DOWNLOAD_TRIES); do
+	say "Downloading the images from $FILES"
+	rm -f "$WORK"/*.zst
+	until_ok fetch -o "$WORK/SHA256SUMS" "$FILES/SHA256SUMS"
+	total=0
+	for image in $ESP_IMAGE $ROOT_IMAGE; do
+		until_ok size_on_server "$image"
+		[ "${zst_size[$image]}" -gt 0 ] || fail "the server reports no size for $image.zst"
+		total=$((total + zst_size[$image]))
+	done
+	done_bytes=0
+	for image in $ESP_IMAGE $ROOT_IMAGE; do
+		download "$image"
+		done_bytes=$((done_bytes + zst_size[$image]))
+	done
+	# SECONDS: how long the script has been running.
+	report download 100 "$((total / MIB)) MiB in $SECONDS s"
+
+	say "Checking the images against SHA256SUMS"
+	report verify - "SHA-256 of both images"
+	if verify_images; then
+		break
+	fi
+	[ "$try" -lt $DOWNLOAD_TRIES ] || fail "the images do not match SHA256SUMS after $DOWNLOAD_TRIES downloads"
+	echo "   downloading them again"
+done
+
+say "Checking that the partitions may be overwritten"
+check_partition "$esp" "${size[$ESP_IMAGE]}" vfat $ESP_MAX "$ESP_TYPE"
+check_partition "$root" "${size[$ROOT_IMAGE]}" ext4 $ROOT_MAX "$ROOT_TYPES"
+echo "   both checks passed"
+
+write_image() {
+	local image=$1 dev=$2 pid written percent
+	zstd -dcq "$WORK/$image.zst" | dd of="$dev" bs=4M iflag=fullblock oflag=direct status=none &
+	pid=$!
+	while running "$pid"; do
+		# wchar in /proc/PID/io: how many bytes dd has written so far.
+		written=$(awk '$1 == "wchar:" { print $2 }' "/proc/$pid/io" 2>/dev/null || echo 0)
+		[ -n "$written" ] || written=0
+		percent=$((written * 100 / size[$image]))
+		printf '   %s -> %s: %3d%%\n' "$image" "$dev" "$percent"
+		report write "$percent" "$image -> $dev"
+		sleep 2
+	done
+	wait "$pid" || fail "writing $image to $dev failed"
+	blockdev --flushbufs "$dev"
+	[ "$(head -c "${size[$image]}" "$dev" | sha256sum | cut -d' ' -f1)" = "${checksum[$image]}" ] ||
+		fail "the read-back of $dev does not match $image"
+	echo "   $dev read back and verified"
+	report write 100 "$image -> $dev, read back"
+}
+
+say "Writing the images"
+write_image $ESP_IMAGE "$esp"
+write_image $ROOT_IMAGE "$root"
+rm -f "$WORK"/*.zst
+
+say "Growing the root file system"
+# e2fsck exits with 1 when it has fixed something: 0 and 1 are fine.
+rc=0
+e2fsck -f -y "$root" || rc=$?
+[ "$rc" -le 1 ] || fail "e2fsck found errors it could not fix (code $rc)"
+resize2fs "$root"
+
+say "Setting the next boot to the test system"
+report bootloader - "BootNext to the test system"
+esp_uuid=$(lsblk -dno PARTUUID "$esp")
+# "Boot0006* OSreboot test HD(3,GPT,<PARTUUID>,...)" -> 0006
+entry_for_esp() {
+	efibootmgr -v | grep -i "$esp_uuid" | head -n 1 | cut -c5-8 || true
+}
+entry=$(entry_for_esp)
+if [ -z "$entry" ]; then
+	# --create-only leaves BootOrder as it is.
+	espnum=$(cat "/sys/class/block/$(basename "$esp")/partition")
+	efibootmgr --create-only --disk "$disk" --part "$espnum" --label "$ENTRY_LABEL" --loader "$LOADER" >/dev/null
+	entry=$(entry_for_esp)
+	[ -n "$entry" ] || fail "could not create a boot entry for $esp"
+fi
+efibootmgr --bootnext "$entry" >/dev/null
+echo "   BootNext is Boot$entry"
+
+# This environment lives in memory: keep its log in the restored system.
+say "Saving the log to $LOG_DIR on $root"
+mkdir -p "$WORK/root"
+if mount "$root" "$WORK/root"; then
+	mkdir -p "$WORK/root$LOG_DIR"
+	journalctl -b -u osreboot-recovery -o short-monotonic --no-pager >"$WORK/root$LOG_DIR/recovery.log" || true
+	journalctl -b -o short-monotonic --no-pager >"$WORK/root$LOG_DIR/journal.log" || true
+	umount "$WORK/root"
+else
+	echo "   could not mount $root, the log is lost"
+fi
+
+say "Restored in $SECONDS s. Booting the test system."
+report reboot - "restored in $SECONDS s"
+sleep 3
+systemctl reboot
