@@ -73,7 +73,7 @@ const finish = (html: string) =>
     .replace(/<p>(<strong>Таблица [^]*?)<\/p>\s*(<div class="table">[^]*?<\/div>)/g, '<figure>\n<figcaption>$1</figcaption>\n$2\n</figure>')
     .replace(/(<picture>[^]*?<\/picture>)\s*<p>(<strong>Рисунок [^]*?)<\/p>/g, '<figure>\n$1\n<figcaption>$2</figcaption>\n</figure>');
 
-const source = await readFile(path.join(ROOT, 'README.md'), 'utf8');
+const source = await readFile(path.join(ROOT, 'README_PAPER.md'), 'utf8');
 const tokens = md.parse(source, {});
 addAnchors(tokens);
 markSources(tokens);
@@ -103,7 +103,7 @@ const abstractText = abstract.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(
 const description = md.utils.escapeHtml(abstractText.slice(0, abstractText.indexOf('.', 200) + 1));
 
 const updated = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
-  .format((await stat(path.join(ROOT, 'README.md'))).mtime);
+    .format((await stat(path.join(ROOT, 'README_PAPER.md'))).mtime);
 
 const page = `<!doctype html>
 <html lang="ru">
